@@ -10,15 +10,19 @@ import { useColors } from "@/hooks/useColors";
 import { useMapContext, LayerKey } from "@/context/MapContext";
 
 const LAYERS: { key: LayerKey; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
-  { key: "crime", label: "Crime", icon: "shield-outline" },
-  { key: "requests311", label: "311", icon: "chatbubble-outline" },
-  { key: "permits", label: "Permits", icon: "construct-outline" },
+  { key: "crime",       label: "Crime",   icon: "shield-outline"     },
+  { key: "requests311", label: "311",     icon: "chatbubble-outline"  },
+  { key: "permits",     label: "Permits", icon: "construct-outline"   },
+  { key: "water",       label: "Water",   icon: "water-outline"       },
 ];
 
-const LAYER_COLOR_MAP: Record<LayerKey, "crime" | "requests311" | "permits"> = {
-  crime: "crime",
+type ColorKey = "crime" | "requests311" | "permits" | "water";
+
+const LAYER_COLOR_MAP: Record<LayerKey, ColorKey> = {
+  crime:       "crime",
   requests311: "requests311",
-  permits: "permits",
+  permits:     "permits",
+  water:       "water",
 };
 
 export function LayerControls() {
@@ -55,7 +59,7 @@ export function LayerControls() {
             <Ionicons
               name={layer.icon}
               size={15}
-              color={active ? layerColor : colors.mutedForeground}
+              color={active ? layerColor : (colors.mutedForeground as string)}
             />
             <Text
               style={[
@@ -76,8 +80,8 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    paddingHorizontal: 16,
+    gap: 6,
+    paddingHorizontal: 14,
     paddingTop: 12,
     paddingBottom: 12,
     borderTopWidth: StyleSheet.hairlineWidth,
@@ -87,13 +91,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 5,
+    gap: 4,
     paddingVertical: 9,
     borderRadius: 22,
     borderWidth: 1,
   },
   label: {
-    fontSize: 12,
+    fontSize: 11,
     fontFamily: "Inter_600SemiBold",
     letterSpacing: 0.2,
   },

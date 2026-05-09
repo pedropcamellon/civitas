@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState } from "react";
 
-export type LayerKey = "crime" | "requests311" | "permits";
+export type LayerKey = "crime" | "requests311" | "permits" | "water";
 export type TimeFilter = "24h" | "7d" | "30d";
 
 export interface CivicIncident {
@@ -13,12 +13,34 @@ export interface CivicIncident {
   date: string;
   status: string;
   address?: string;
+  neighborhood?: string;
+}
+
+export interface NeighborhoodReport {
+  neighborhood: string;
+  lat: number;
+  lon: number;
+  crimeCount: number;
+  crimeScore: number;
+  crimeLabel: string;
+  crimeColor: string;
+  waterScore: number;
+  waterGrade: string;
+  waterLabel: string;
+  waterColor: string;
+  waterIncidents: number;
+  waterAdvisory: string | null;
+  requests311Count: number;
+  permitsCount: number;
+  topCrimeTypes: { title: string; count: number }[];
+  lastUpdated: string;
 }
 
 interface LayerState {
   crime: boolean;
   requests311: boolean;
   permits: boolean;
+  water: boolean;
 }
 
 interface MapContextType {
@@ -30,6 +52,10 @@ interface MapContextType {
   setSelectedIncident: (incident: CivicIncident | null) => void;
   userLocation: { latitude: number; longitude: number } | null;
   setUserLocation: (loc: { latitude: number; longitude: number } | null) => void;
+  neighborhoodReport: NeighborhoodReport | null;
+  setNeighborhoodReport: (report: NeighborhoodReport | null) => void;
+  isReportOpen: boolean;
+  setIsReportOpen: (open: boolean) => void;
 }
 
 const MapContext = createContext<MapContextType | undefined>(undefined);
@@ -39,6 +65,7 @@ export function MapProvider({ children }: { children: React.ReactNode }) {
     crime: true,
     requests311: true,
     permits: true,
+    water: true,
   });
   const [timeFilter, setTimeFilter] = useState<TimeFilter>("7d");
   const [selectedIncident, setSelectedIncident] = useState<CivicIncident | null>(null);
@@ -46,6 +73,8 @@ export function MapProvider({ children }: { children: React.ReactNode }) {
     latitude: number;
     longitude: number;
   } | null>(null);
+  const [neighborhoodReport, setNeighborhoodReport] = useState<NeighborhoodReport | null>(null);
+  const [isReportOpen, setIsReportOpen] = useState(false);
 
   const toggleLayer = (layer: LayerKey) => {
     setLayers((prev) => ({ ...prev, [layer]: !prev[layer] }));
@@ -62,6 +91,10 @@ export function MapProvider({ children }: { children: React.ReactNode }) {
         setSelectedIncident,
         userLocation,
         setUserLocation,
+        neighborhoodReport,
+        setNeighborhoodReport,
+        isReportOpen,
+        setIsReportOpen,
       }}
     >
       {children}

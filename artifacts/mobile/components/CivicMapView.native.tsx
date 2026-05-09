@@ -28,9 +28,10 @@ function IncidentMarker({
 }) {
   const colors = useColors();
   const colorMap: Record<string, string> = {
-    crime: colors.crime as string,
+    crime:       colors.crime       as string,
     requests311: colors.requests311 as string,
-    permits: colors.permits as string,
+    permits:     colors.permits     as string,
+    water:       colors.water       as string,
   };
   const color = colorMap[incident.type] ?? (colors.primary as string);
 

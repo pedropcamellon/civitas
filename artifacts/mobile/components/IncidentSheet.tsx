@@ -16,14 +16,16 @@ import { useMapContext, LayerKey } from "@/context/MapContext";
 const SHEET_HEIGHT = 300;
 
 function getTypeLabel(type: LayerKey) {
-  if (type === "crime") return "Criminal Incident";
+  if (type === "crime")       return "Criminal Incident";
   if (type === "requests311") return "311 Service Request";
+  if (type === "water")       return "Water Quality Alert";
   return "Building Permit";
 }
 
 function getTypeIcon(type: LayerKey): keyof typeof Ionicons.glyphMap {
-  if (type === "crime") return "shield";
+  if (type === "crime")       return "shield";
   if (type === "requests311") return "chatbubble";
+  if (type === "water")       return "water";
   return "construct";
 }
 
@@ -94,13 +96,13 @@ export function IncidentSheet() {
   if (!selectedIncident) return null;
 
   const typeColorMap: Record<LayerKey, string> = {
-    crime: colors.crime as string,
+    crime:       colors.crime       as string,
     requests311: colors.requests311 as string,
-    permits: colors.permits as string,
+    permits:     colors.permits     as string,
+    water:       colors.water       as string,
   };
   const typeColor = typeColorMap[selectedIncident.type];
-  const bottomPad =
-    Platform.OS === "web" ? 34 : insets.bottom + 4;
+  const bottomPad = Platform.OS === "web" ? 34 : insets.bottom + 4;
 
   return (
     <Animated.View
@@ -114,7 +116,6 @@ export function IncidentSheet() {
         },
       ]}
     >
-      {/* Drag handle area */}
       <View {...panResponder.panHandlers} style={styles.handleArea}>
         <View style={[styles.handle, { backgroundColor: colors.mutedForeground + "50" }]} />
 
@@ -138,7 +139,7 @@ export function IncidentSheet() {
             </Text>
           </View>
           <TouchableOpacity onPress={closeSheet} style={styles.closeBtn}>
-            <Ionicons name="close" size={18} color={colors.mutedForeground} />
+            <Ionicons name="close" size={18} color={colors.mutedForeground as string} />
           </TouchableOpacity>
         </View>
       </View>
@@ -153,7 +154,7 @@ export function IncidentSheet() {
       {selectedIncident.description !== "" &&
         selectedIncident.description !== selectedIncident.title && (
           <Text
-            style={[styles.description, { color: colors.mutedForeground }]}
+            style={[styles.description, { color: colors.mutedForeground as string }]}
             numberOfLines={2}
           >
             {selectedIncident.description}
@@ -166,9 +167,9 @@ export function IncidentSheet() {
             <Ionicons
               name="calendar-outline"
               size={13}
-              color={colors.mutedForeground}
+              color={colors.mutedForeground as string}
             />
-            <Text style={[styles.metaText, { color: colors.mutedForeground }]}>
+            <Text style={[styles.metaText, { color: colors.mutedForeground as string }]}>
               {formatDate(selectedIncident.date)}
             </Text>
           </View>
@@ -189,10 +190,10 @@ export function IncidentSheet() {
           <Ionicons
             name="location-outline"
             size={13}
-            color={colors.mutedForeground}
+            color={colors.mutedForeground as string}
           />
           <Text
-            style={[styles.metaText, { color: colors.mutedForeground }]}
+            style={[styles.metaText, { color: colors.mutedForeground as string }]}
             numberOfLines={1}
           >
             {selectedIncident.address}

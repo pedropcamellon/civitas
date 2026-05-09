@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { CivicIncident, TimeFilter } from "@/context/MapContext";
+import { CivicIncident, NeighborhoodReport, TimeFilter } from "@/context/MapContext";
 
 function getDateCutoff(timeFilter: TimeFilter): string {
   const now = new Date();
@@ -18,7 +18,7 @@ function apiUrl(path: string): string {
 
 interface RawIncident {
   id: string;
-  type: "crime" | "311" | "permit";
+  type: "crime" | "311" | "permit" | "water";
   lat: number;
   lon: number;
   title: string;
@@ -26,11 +26,13 @@ interface RawIncident {
   date: string;
   status: string;
   address: string;
+  neighborhood: string;
 }
 
 function mapType(raw: RawIncident["type"]): CivicIncident["type"] {
   if (raw === "311") return "requests311";
   if (raw === "permit") return "permits";
+  if (raw === "water") return "water";
   return "crime";
 }
 
@@ -45,6 +47,7 @@ function toCivicIncident(r: RawIncident): CivicIncident {
     date: r.date,
     status: r.status,
     address: r.address,
+    neighborhood: r.neighborhood,
   };
 }
 
@@ -83,6 +86,34 @@ export function usePermitData(timeFilter: TimeFilter) {
     queryKey: ["permits", timeFilter],
     queryFn: () => fetchLayer("/civic/permits", timeFilter),
     staleTime: 5 * 60 * 1000,
+    retry: 1,
+  });
+}
+
+export function useWaterData(timeFilter: TimeFilter) {
+  return useQuery({
+    queryKey: ["water", timeFilter],
+    queryFn: () => fetchLayer("/civic/water", timeFilter),
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
+  });
+}
+
+export function useNeighborhoodReport(
+  lat: number | null,
+  lon: number | null,
+  enabled = true
+) {
+  return useQuery<NeighborhoodReport>({
+    queryKey: ["neighborhood-report", lat, lon],
+    queryFn: async () => {
+      const url = apiUrl(`/neighborhood/report?lat=${lat}&lon=${lon}`);
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`Neighborhood API error ${res.status}`);
+      return res.json() as Promise<NeighborhoodReport>;
+    },
+    enabled: enabled && lat !== null && lon !== null,
+    staleTime: 0,
     retry: 1,
   });
 }

@@ -25,14 +25,15 @@ export function CivicMapView({ incidents, onMarkerPress }: Props) {
   const colors = useColors();
 
   const colorMap: Record<string, string> = {
-    crime: colors.crime as string,
+    crime:       colors.crime       as string,
     requests311: colors.requests311 as string,
-    permits: colors.permits as string,
+    permits:     colors.permits     as string,
+    water:       colors.water       as string,
   };
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Grid lines to suggest a map */}
+      {/* Grid lines suggesting a map */}
       <View style={styles.gridOverlay} pointerEvents="none">
         {[...Array(8)].map((_, i) => (
           <View
@@ -57,8 +58,8 @@ export function CivicMapView({ incidents, onMarkerPress }: Props) {
         </Text>
       </View>
 
-      {/* Incident dots scattered on mock map */}
-      {incidents.slice(0, 60).map((incident, i) => {
+      {/* Incident dots mapped to Miami bounding box */}
+      {incidents.slice(0, 80).map((incident) => {
         const color = colorMap[incident.type] ?? (colors.primary as string);
         const x = ((incident.lon + 80.45) / 0.55) * 100;
         const y = ((incident.lat - 25.6) / 0.35) * 100;
@@ -107,7 +108,7 @@ const styles = StyleSheet.create({
   },
   hint: {
     position: "absolute",
-    bottom: 160,
+    bottom: 170,
     alignSelf: "center",
     alignItems: "center",
     backgroundColor: "rgba(22,32,56,0.85)",

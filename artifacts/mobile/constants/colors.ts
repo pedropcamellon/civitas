@@ -27,9 +27,10 @@ const colors = {
     border: "#2A3D5E",
     input: "#1E2E4A",
 
-    crime: "#FF453A",
+    crime:       "#FF453A",
     requests311: "#FFD60A",
-    permits: "#32D74B",
+    permits:     "#32D74B",
+    water:       "#4FC3F7",
   },
 
   radius: 14,
