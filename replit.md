@@ -1,44 +1,60 @@
-# [Project name]
+# Civic Flow Miami
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+A mobile-first Expo app that displays Miami/South Florida civic data on an interactive map — 311 service requests, crime incidents, and building permits as colored markers with layer toggles and timeline filters.
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
+- `pnpm --filter @workspace/api-server run dev` — run the API server (port 8080, proxied at `/api`)
+- `pnpm --filter @workspace/mobile run dev` — run the Expo app (scan QR with Expo Go for native experience)
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
 
 ## Stack
 
 - pnpm workspaces, Node.js 24, TypeScript 5.9
-- API: Express 5
-- DB: PostgreSQL + Drizzle ORM
-- Validation: Zod (`zod/v4`), `drizzle-zod`
-- API codegen: Orval (from OpenAPI spec)
-- Build: esbuild (CJS bundle)
+- API: Express 5 (proxy + static civic data)
+- Mobile: Expo SDK 54, expo-router, React Native Maps (native), React Query
+- Build: esbuild (CJS bundle for API)
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/mobile/` — Expo mobile app
+  - `app/(tabs)/index.tsx` — main map screen (single tab)
+  - `components/CivicMapView.native.tsx` — react-native-maps (iOS/Android)
+  - `components/CivicMapView.tsx` — web fallback (dot grid)
+  - `context/MapContext.tsx` — global state (layers, timeline, selected incident)
+  - `hooks/useCivicData.ts` — data fetching via API proxy
+  - `constants/colors.ts` — Miami dark palette
+- `artifacts/api-server/` — Express API server
+  - `src/routes/civic.ts` — `/api/civic/311`, `/api/civic/crime`, `/api/civic/permits`
+  - `src/data/miamiCivicData.ts` — 450 realistic Miami incidents (MVP static dataset)
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- **Platform split**: `CivicMapView.native.tsx` uses react-native-maps (pinned at 1.18.0); Metro resolves `.native.tsx` on device. The `.tsx` file is a web dot-grid fallback.
+- **API proxy**: All data goes through the Express server at `/api/civic/*` — avoids browser CORS issues and allows future swap to live ArcGIS/Socrata feeds.
+- **Static dataset for MVP**: 450 incidents seeded across real Miami neighborhoods. Field names match what the live Miami-Dade ArcGIS API would return.
+- **react-native-maps pinned at 1.18.0**: do not upgrade — newer versions break web bundler in Expo SDK 54.
+- **No tabs**: `app/(tabs)/_layout.tsx` renders a Stack (not TabBar) — single-screen map app.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+Full-screen interactive map of Miami civic activity. Users can:
+- Toggle three data layers: Crime (red), 311 Requests (yellow), Permits (green)
+- Filter by timeline: 24h / 7 days / 30 days
+- Tap "Near Me" to center on their location
+- Tap any marker to see a bottom sheet with incident details (address, status, description, date)
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- Miami dark navy palette: `#0A1628` background, `#00B4D8` primary
+- Colors: crime=`#FF453A`, 311=`#FFD60A`, permits=`#32D74B`
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- CORS on web: Socrata/ArcGIS calls blocked in browser — always proxy through the API server
+- react-native-maps@1.18.0 is pinned — do NOT run `pnpm update` on it
+- For native full experience: scan the Expo QR code with Expo Go on iOS or Android
 
 ## Pointers
 
