@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import { useQueryClient } from "@tanstack/react-query";
 import { useColors } from "@/hooks/useColors";
+import { useTheme } from "@/context/ThemeContext";
 import { useMapContext, CivicIncident } from "@/context/MapContext";
 import {
   use311Data,
@@ -24,13 +25,13 @@ import {
   useNeighborhoodReport,
 } from "@/hooks/useCivicData";
 import { useUserLocation } from "@/hooks/useUserLocation";
-import { LayerControls } from "@/components/LayerControls";
 import { TimelineBar } from "@/components/TimelineBar";
 import { IncidentSheet } from "@/components/IncidentSheet";
+import { LayerSheet } from "@/components/LayerSheet";
 import { NeighborhoodReport } from "@/components/NeighborhoodReport";
 import { CivicMapView } from "@/components/CivicMapView";
+import { THEME_META } from "@/constants/colors";
 
-// Neighborhood centroids for client-side search (no API call needed)
 const NEIGHBORHOODS = [
   { name: "Downtown Miami",    lat: 25.7685, lon: -80.1937 },
   { name: "Brickell",          lat: 25.7617, lon: -80.1918 },
@@ -59,6 +60,7 @@ const NEIGHBORHOODS = [
 
 export default function MapScreen() {
   const colors = useColors();
+  const { themeName, cycleTheme } = useTheme();
   const insets = useSafeAreaInsets();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mapRef = useRef<any>(null);
@@ -74,6 +76,8 @@ export default function MapScreen() {
     setNeighborhoodReport,
     isReportOpen,
     setIsReportOpen,
+    isLayerSheetOpen,
+    setIsLayerSheetOpen,
   } = useMapContext();
 
   const { location, loading: locLoading, requestLocation } = useUserLocation();
@@ -94,7 +98,6 @@ export default function MapScreen() {
     refetch: refetchReport,
   } = useNeighborhoodReport(reportLat, reportLon, isReportOpen);
 
-  // Sync report data into context
   useEffect(() => {
     if (reportData) setNeighborhoodReport(reportData);
   }, [reportData]);
@@ -103,8 +106,8 @@ export default function MapScreen() {
   const hasError = e311 || eCrime || ePermits || eWater;
 
   const visibleIncidents: CivicIncident[] = [
-    ...(layers.requests311 ? data311   : []),
-    ...(layers.crime        ? crimeData : []),
+    ...(layers.requests311 ? data311    : []),
+    ...(layers.crime        ? crimeData  : []),
     ...(layers.permits      ? permitData : []),
     ...(layers.water        ? waterData  : []),
   ];
@@ -113,9 +116,10 @@ export default function MapScreen() {
     (incident: CivicIncident) => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       setIsReportOpen(false);
+      setIsLayerSheetOpen(false);
       setSelectedIncident(incident);
     },
-    [setSelectedIncident, setIsReportOpen]
+    [setSelectedIncident, setIsReportOpen, setIsLayerSheetOpen]
   );
 
   const handleMapPress = useCallback(() => {
@@ -131,20 +135,16 @@ export default function MapScreen() {
       setReportLat(loc.latitude);
       setReportLon(loc.longitude);
       setIsReportOpen(true);
+      setIsLayerSheetOpen(false);
       setSelectedIncident(null);
       if (mapRef.current?.animateToRegion) {
         mapRef.current.animateToRegion(
-          {
-            latitude: loc.latitude,
-            longitude: loc.longitude,
-            latitudeDelta: 0.04,
-            longitudeDelta: 0.03,
-          },
+          { latitude: loc.latitude, longitude: loc.longitude, latitudeDelta: 0.04, longitudeDelta: 0.03 },
           800
         );
       }
     }
-  }, [requestLocation, setUserLocation, setIsReportOpen, setSelectedIncident]);
+  }, [requestLocation, setUserLocation, setIsReportOpen, setIsLayerSheetOpen, setSelectedIncident]);
 
   const handleNeighborhoodSelect = useCallback(
     (nb: (typeof NEIGHBORHOODS)[number]) => {
@@ -155,20 +155,16 @@ export default function MapScreen() {
       setReportLat(nb.lat);
       setReportLon(nb.lon);
       setIsReportOpen(true);
+      setIsLayerSheetOpen(false);
       setSelectedIncident(null);
       if (mapRef.current?.animateToRegion) {
         mapRef.current.animateToRegion(
-          {
-            latitude: nb.lat,
-            longitude: nb.lon,
-            latitudeDelta: 0.06,
-            longitudeDelta: 0.05,
-          },
+          { latitude: nb.lat, longitude: nb.lon, latitudeDelta: 0.06, longitudeDelta: 0.05 },
           800
         );
       }
     },
-    [setIsReportOpen, setSelectedIncident]
+    [setIsReportOpen, setIsLayerSheetOpen, setSelectedIncident]
   );
 
   const handleRefreshReport = useCallback(() => {
@@ -176,21 +172,29 @@ export default function MapScreen() {
     refetchReport();
   }, [queryClient, refetchReport]);
 
+  const handleOpenLayers = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setIsLayerSheetOpen(true);
+    setIsReportOpen(false);
+    setSelectedIncident(null);
+  }, [setIsLayerSheetOpen, setIsReportOpen, setSelectedIncident]);
+
   const filteredNeighborhoods = searchQuery.length > 0
-    ? NEIGHBORHOODS.filter((nb) =>
-        nb.name.toLowerCase().includes(searchQuery.toLowerCase())
-      )
+    ? NEIGHBORHOODS.filter((nb) => nb.name.toLowerCase().includes(searchQuery.toLowerCase()))
     : NEIGHBORHOODS;
 
+  const activeLayerCount = Object.values(layers).filter(Boolean).length;
+  const themeIcon = THEME_META[themeName].icon as keyof typeof Ionicons.glyphMap;
   const topPad    = Platform.OS === "web" ? 67 : insets.top;
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { backgroundColor: colors.background }]}>
       <CivicMapView
         mapRef={mapRef}
         incidents={visibleIncidents}
         userHasLocation={!!location}
+        showCargoRoute={layers.cargo}
         onMarkerPress={handleMarkerPress}
         onMapPress={handleMapPress}
       />
@@ -198,20 +202,11 @@ export default function MapScreen() {
       {/* ── Top overlay ── */}
       <View style={[styles.topOverlay, { paddingTop: topPad + 10 }]}>
         {/* Header card */}
-        <View
-          style={[
-            styles.headerCard,
-            { backgroundColor: colors.card + "F0", borderColor: colors.border },
-          ]}
-        >
+        <View style={[styles.headerCard, { backgroundColor: colors.card + "F2", borderColor: colors.border }]}>
           <View style={styles.headerLeft}>
-            <View style={[styles.dot, { backgroundColor: colors.primary }]} />
-            <Text style={[styles.headerTitle, { color: colors.foreground }]}>
-              Civic Flow
-            </Text>
-            <Text style={[styles.headerCity, { color: colors.mutedForeground as string }]}>
-              Miami
-            </Text>
+            <View style={[styles.appDot, { backgroundColor: colors.primary }]} />
+            <Text style={[styles.headerTitle, { color: colors.foreground }]}>Civic Flow</Text>
+            <Text style={[styles.headerCity, { color: colors.mutedForeground as string }]}>Miami</Text>
           </View>
 
           <View style={styles.headerRight}>
@@ -220,32 +215,28 @@ export default function MapScreen() {
             ) : hasError ? (
               <View style={[styles.errorChip, { backgroundColor: (colors.destructive as string) + "20" }]}>
                 <Ionicons name="warning-outline" size={12} color={colors.destructive as string} />
-                <Text style={[styles.errorText, { color: colors.destructive as string }]}>
-                  Limited data
-                </Text>
+                <Text style={[styles.errorText, { color: colors.destructive as string }]}>Limited data</Text>
               </View>
             ) : null}
+
             <Text style={[styles.countText, { color: colors.mutedForeground as string }]}>
-              {visibleIncidents.length.toLocaleString()} events
+              {visibleIncidents.length} events
             </Text>
+
+            {/* Theme toggle */}
+            <TouchableOpacity
+              onPress={cycleTheme}
+              style={[styles.themeBtn, { backgroundColor: colors.muted }]}
+              activeOpacity={0.7}
+            >
+              <Ionicons name={themeIcon} size={14} color={colors.primary as string} />
+            </TouchableOpacity>
           </View>
         </View>
 
         {/* Search bar */}
-        <View
-          style={[
-            styles.searchCard,
-            {
-              backgroundColor: colors.card + "F5",
-              borderColor: searchFocused ? (colors.primary as string) : colors.border,
-            },
-          ]}
-        >
-          <Ionicons
-            name="search"
-            size={15}
-            color={searchFocused ? (colors.primary as string) : (colors.mutedForeground as string)}
-          />
+        <View style={[styles.searchCard, { backgroundColor: colors.card + "F5", borderColor: searchFocused ? (colors.primary as string) : colors.border }]}>
+          <Ionicons name="search" size={15} color={searchFocused ? (colors.primary as string) : (colors.mutedForeground as string)} />
           <TextInput
             style={[styles.searchInput, { color: colors.foreground }]}
             placeholder="Search neighborhood…"
@@ -257,9 +248,7 @@ export default function MapScreen() {
             autoCorrect={false}
           />
           {searchQuery.length > 0 && (
-            <TouchableOpacity
-              onPress={() => { setSearchQuery(""); setSearchFocused(false); Keyboard.dismiss(); }}
-            >
+            <TouchableOpacity onPress={() => { setSearchQuery(""); setSearchFocused(false); Keyboard.dismiss(); }}>
               <Ionicons name="close-circle" size={16} color={colors.mutedForeground as string} />
             </TouchableOpacity>
           )}
@@ -267,12 +256,7 @@ export default function MapScreen() {
 
         {/* Neighborhood dropdown */}
         {searchFocused && (
-          <View
-            style={[
-              styles.dropdown,
-              { backgroundColor: colors.card, borderColor: colors.border },
-            ]}
-          >
+          <View style={[styles.dropdown, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <FlatList
               data={filteredNeighborhoods}
               keyExtractor={(nb) => nb.name}
@@ -285,9 +269,7 @@ export default function MapScreen() {
                   activeOpacity={0.7}
                 >
                   <Ionicons name="location-outline" size={14} color={colors.mutedForeground as string} />
-                  <Text style={[styles.dropdownText, { color: colors.foreground }]}>
-                    {nb.name}
-                  </Text>
+                  <Text style={[styles.dropdownText, { color: colors.foreground }]}>{nb.name}</Text>
                 </TouchableOpacity>
               )}
             />
@@ -297,13 +279,14 @@ export default function MapScreen() {
         <TimelineBar />
       </View>
 
-      {/* ── Near Me FAB ── */}
+      {/* ── Near Me FAB (right) ── */}
       <TouchableOpacity
         style={[
           styles.fab,
           {
             backgroundColor: isReportOpen ? colors.secondary : (colors.primary as string),
             borderColor: isReportOpen ? (colors.primary as string) : "transparent",
+            right: 20,
             bottom: Platform.OS === "web" ? bottomPad + 78 + 20 : insets.bottom + 78 + 16,
           },
         ]}
@@ -321,73 +304,77 @@ export default function MapScreen() {
         )}
       </TouchableOpacity>
 
-      {/* ── Bottom layer controls ── */}
-      <View style={[styles.bottomOverlay, { paddingBottom: bottomPad }]}>
-        <LayerControls />
+      {/* ── Layers FAB (left) ── */}
+      <TouchableOpacity
+        style={[
+          styles.layersFab,
+          {
+            backgroundColor: isLayerSheetOpen ? colors.primary : (colors.card as string),
+            borderColor: isLayerSheetOpen ? (colors.primary as string) : colors.border,
+            left: 20,
+            bottom: Platform.OS === "web" ? bottomPad + 78 + 20 : insets.bottom + 78 + 16,
+          },
+        ]}
+        onPress={handleOpenLayers}
+        activeOpacity={0.85}
+      >
+        <Ionicons
+          name="layers-outline"
+          size={18}
+          color={isLayerSheetOpen ? (colors.primaryForeground as string) : (colors.foreground as string)}
+        />
+        <View style={[styles.layersBadge, { backgroundColor: colors.primary }]}>
+          <Text style={[styles.layersBadgeText, { color: colors.primaryForeground as string }]}>
+            {activeLayerCount}
+          </Text>
+        </View>
+      </TouchableOpacity>
+
+      {/* ── Bottom spacer / safe area ── */}
+      <View style={[styles.bottomBar, { paddingBottom: bottomPad, backgroundColor: colors.card + "E8", borderTopColor: colors.border }]}>
+        <Text style={[styles.bottomLabel, { color: colors.mutedForeground as string }]}>
+          {activeLayerCount} layer{activeLayerCount !== 1 ? "s" : ""} active · Tap
+          <Text style={{ color: colors.primary as string }}> Layers </Text>
+          to configure
+        </Text>
       </View>
 
-      {/* ── Sheets (only one shows at a time) ── */}
+      {/* ── Sheets ── */}
       <IncidentSheet />
       <NeighborhoodReport
         report={neighborhoodReport}
         isLoading={reportLoading}
         onRefresh={handleRefreshReport}
       />
+      <LayerSheet />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: "#0A1628",
-  },
-  topOverlay: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-  },
+  root: { flex: 1 },
+  topOverlay: { position: "absolute", top: 0, left: 0, right: 0 },
   headerCard: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     marginHorizontal: 16,
     marginBottom: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
     borderRadius: 18,
     borderWidth: 1,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
     elevation: 5,
   },
-  headerLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  headerTitle: {
-    fontSize: 16,
-    fontFamily: "Inter_700Bold",
-    letterSpacing: -0.3,
-  },
-  headerCity: {
-    fontSize: 14,
-    fontFamily: "Inter_400Regular",
-  },
-  headerRight: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
+  headerLeft: { flexDirection: "row", alignItems: "center", gap: 8 },
+  appDot: { width: 8, height: 8, borderRadius: 4 },
+  headerTitle: { fontSize: 16, fontFamily: "Inter_700Bold", letterSpacing: -0.3 },
+  headerCity: { fontSize: 14, fontFamily: "Inter_400Regular" },
+  headerRight: { flexDirection: "row", alignItems: "center", gap: 8 },
   errorChip: {
     flexDirection: "row",
     alignItems: "center",
@@ -396,13 +383,14 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     borderRadius: 8,
   },
-  errorText: {
-    fontSize: 11,
-    fontFamily: "Inter_500Medium",
-  },
-  countText: {
-    fontSize: 12,
-    fontFamily: "Inter_500Medium",
+  errorText: { fontSize: 11, fontFamily: "Inter_500Medium" },
+  countText: { fontSize: 12, fontFamily: "Inter_500Medium" },
+  themeBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
   },
   searchCard: {
     flexDirection: "row",
@@ -441,13 +429,9 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  dropdownText: {
-    fontSize: 14,
-    fontFamily: "Inter_500Medium",
-  },
+  dropdownText: { fontSize: 14, fontFamily: "Inter_500Medium" },
   fab: {
     position: "absolute",
-    right: 20,
     width: 50,
     height: 50,
     borderRadius: 25,
@@ -460,10 +444,46 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 8,
   },
-  bottomOverlay: {
+  layersFab: {
+    position: "absolute",
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    borderWidth: 1.5,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  layersBadge: {
+    position: "absolute",
+    top: -2,
+    right: -2,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  layersBadgeText: {
+    fontSize: 10,
+    fontFamily: "Inter_700Bold",
+  },
+  bottomBar: {
     position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
+    paddingTop: 12,
+    paddingHorizontal: 16,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    alignItems: "center",
+  },
+  bottomLabel: {
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
   },
 });

@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState } from "react";
 
-export type LayerKey = "crime" | "requests311" | "permits" | "water";
+export type LayerKey = "crime" | "requests311" | "permits" | "water" | "cargo";
 export type TimeFilter = "24h" | "7d" | "30d";
 
 export interface CivicIncident {
@@ -41,6 +41,7 @@ interface LayerState {
   requests311: boolean;
   permits: boolean;
   water: boolean;
+  cargo: boolean;
 }
 
 interface MapContextType {
@@ -56,6 +57,8 @@ interface MapContextType {
   setNeighborhoodReport: (report: NeighborhoodReport | null) => void;
   isReportOpen: boolean;
   setIsReportOpen: (open: boolean) => void;
+  isLayerSheetOpen: boolean;
+  setIsLayerSheetOpen: (open: boolean) => void;
 }
 
 const MapContext = createContext<MapContextType | undefined>(undefined);
@@ -66,6 +69,7 @@ export function MapProvider({ children }: { children: React.ReactNode }) {
     requests311: true,
     permits: true,
     water: true,
+    cargo: true,
   });
   const [timeFilter, setTimeFilter] = useState<TimeFilter>("7d");
   const [selectedIncident, setSelectedIncident] = useState<CivicIncident | null>(null);
@@ -75,6 +79,7 @@ export function MapProvider({ children }: { children: React.ReactNode }) {
   } | null>(null);
   const [neighborhoodReport, setNeighborhoodReport] = useState<NeighborhoodReport | null>(null);
   const [isReportOpen, setIsReportOpen] = useState(false);
+  const [isLayerSheetOpen, setIsLayerSheetOpen] = useState(false);
 
   const toggleLayer = (layer: LayerKey) => {
     setLayers((prev) => ({ ...prev, [layer]: !prev[layer] }));
@@ -95,6 +100,8 @@ export function MapProvider({ children }: { children: React.ReactNode }) {
         setNeighborhoodReport,
         isReportOpen,
         setIsReportOpen,
+        isLayerSheetOpen,
+        setIsLayerSheetOpen,
       }}
     >
       {children}

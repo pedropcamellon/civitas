@@ -19,6 +19,7 @@ function getTypeLabel(type: LayerKey) {
   if (type === "crime")       return "Criminal Incident";
   if (type === "requests311") return "311 Service Request";
   if (type === "water")       return "Water Quality Alert";
+  if (type === "cargo")       return "Cargo Route";
   return "Building Permit";
 }
 
@@ -26,6 +27,7 @@ function getTypeIcon(type: LayerKey): keyof typeof Ionicons.glyphMap {
   if (type === "crime")       return "shield";
   if (type === "requests311") return "chatbubble";
   if (type === "water")       return "water";
+  if (type === "cargo")       return "cube";
   return "construct";
 }
 
@@ -34,11 +36,7 @@ function formatDate(dateStr: string) {
   try {
     const d = new Date(dateStr);
     if (isNaN(d.getTime())) return dateStr;
-    return d.toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
+    return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
   } catch {
     return dateStr;
   }
@@ -61,33 +59,21 @@ export function IncidentSheet() {
         if (gs.dy > 80 || gs.vy > 0.5) {
           closeSheet();
         } else {
-          Animated.spring(translateY, {
-            toValue: 0,
-            useNativeDriver: true,
-            tension: 65,
-            friction: 11,
-          }).start();
+          Animated.spring(translateY, { toValue: 0, useNativeDriver: true, tension: 65, friction: 11 }).start();
         }
       },
     })
   ).current;
 
   const closeSheet = () => {
-    Animated.timing(translateY, {
-      toValue: SHEET_HEIGHT + 100,
-      duration: 220,
-      useNativeDriver: true,
-    }).start(() => setSelectedIncident(null));
+    Animated.timing(translateY, { toValue: SHEET_HEIGHT + 100, duration: 220, useNativeDriver: true }).start(
+      () => setSelectedIncident(null)
+    );
   };
 
   useEffect(() => {
     if (selectedIncident) {
-      Animated.spring(translateY, {
-        toValue: 0,
-        useNativeDriver: true,
-        tension: 65,
-        friction: 11,
-      }).start();
+      Animated.spring(translateY, { toValue: 0, useNativeDriver: true, tension: 65, friction: 11 }).start();
     } else {
       translateY.setValue(SHEET_HEIGHT + 100);
     }
@@ -100,6 +86,7 @@ export function IncidentSheet() {
     requests311: colors.requests311 as string,
     permits:     colors.permits     as string,
     water:       colors.water       as string,
+    cargo:       colors.cargo       as string,
   };
   const typeColor = typeColorMap[selectedIncident.type];
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom + 4;
@@ -118,22 +105,9 @@ export function IncidentSheet() {
     >
       <View {...panResponder.panHandlers} style={styles.handleArea}>
         <View style={[styles.handle, { backgroundColor: colors.mutedForeground + "50" }]} />
-
         <View style={styles.header}>
-          <View
-            style={[
-              styles.typeBadge,
-              {
-                backgroundColor: typeColor + "20",
-                borderColor: typeColor + "60",
-              },
-            ]}
-          >
-            <Ionicons
-              name={getTypeIcon(selectedIncident.type)}
-              size={13}
-              color={typeColor}
-            />
+          <View style={[styles.typeBadge, { backgroundColor: typeColor + "20", borderColor: typeColor + "60" }]}>
+            <Ionicons name={getTypeIcon(selectedIncident.type)} size={13} color={typeColor} />
             <Text style={[styles.typeText, { color: typeColor }]}>
               {getTypeLabel(selectedIncident.type)}
             </Text>
@@ -144,58 +118,36 @@ export function IncidentSheet() {
         </View>
       </View>
 
-      <Text
-        style={[styles.title, { color: colors.foreground }]}
-        numberOfLines={2}
-      >
+      <Text style={[styles.title, { color: colors.foreground }]} numberOfLines={2}>
         {selectedIncident.title}
       </Text>
 
-      {selectedIncident.description !== "" &&
-        selectedIncident.description !== selectedIncident.title && (
-          <Text
-            style={[styles.description, { color: colors.mutedForeground as string }]}
-            numberOfLines={2}
-          >
-            {selectedIncident.description}
-          </Text>
-        )}
+      {selectedIncident.description !== "" && selectedIncident.description !== selectedIncident.title && (
+        <Text style={[styles.description, { color: colors.mutedForeground as string }]} numberOfLines={2}>
+          {selectedIncident.description}
+        </Text>
+      )}
 
       <View style={styles.metaRow}>
         {selectedIncident.date !== "" && (
           <View style={styles.metaItem}>
-            <Ionicons
-              name="calendar-outline"
-              size={13}
-              color={colors.mutedForeground as string}
-            />
+            <Ionicons name="calendar-outline" size={13} color={colors.mutedForeground as string} />
             <Text style={[styles.metaText, { color: colors.mutedForeground as string }]}>
               {formatDate(selectedIncident.date)}
             </Text>
           </View>
         )}
         {selectedIncident.status !== "" && (
-          <View
-            style={[styles.statusBadge, { backgroundColor: colors.muted }]}
-          >
-            <Text style={[styles.statusText, { color: colors.foreground }]}>
-              {selectedIncident.status}
-            </Text>
+          <View style={[styles.statusBadge, { backgroundColor: colors.muted }]}>
+            <Text style={[styles.statusText, { color: colors.foreground }]}>{selectedIncident.status}</Text>
           </View>
         )}
       </View>
 
-      {selectedIncident.address !== "" && (
+      {!!selectedIncident.address && (
         <View style={styles.metaItem}>
-          <Ionicons
-            name="location-outline"
-            size={13}
-            color={colors.mutedForeground as string}
-          />
-          <Text
-            style={[styles.metaText, { color: colors.mutedForeground as string }]}
-            numberOfLines={1}
-          >
+          <Ionicons name="location-outline" size={13} color={colors.mutedForeground as string} />
+          <Text style={[styles.metaText, { color: colors.mutedForeground as string }]} numberOfLines={1}>
             {selectedIncident.address}
           </Text>
         </View>
@@ -222,77 +174,17 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     elevation: 16,
   },
-  handleArea: {
-    paddingTop: 10,
-    marginBottom: 4,
-  },
-  handle: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    alignSelf: "center",
-    marginBottom: 16,
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 12,
-  },
-  typeBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-    borderWidth: 1,
-  },
-  typeText: {
-    fontSize: 11,
-    fontFamily: "Inter_600SemiBold",
-    textTransform: "uppercase",
-    letterSpacing: 0.6,
-  },
-  closeBtn: {
-    padding: 4,
-  },
-  title: {
-    fontSize: 19,
-    fontFamily: "Inter_700Bold",
-    lineHeight: 25,
-    marginBottom: 6,
-  },
-  description: {
-    fontSize: 14,
-    fontFamily: "Inter_400Regular",
-    lineHeight: 20,
-    marginBottom: 14,
-  },
-  metaRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    marginBottom: 10,
-    flexWrap: "wrap",
-  },
-  metaItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    marginBottom: 6,
-  },
-  metaText: {
-    fontSize: 13,
-    fontFamily: "Inter_400Regular",
-  },
-  statusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: 8,
-  },
-  statusText: {
-    fontSize: 12,
-    fontFamily: "Inter_600SemiBold",
-  },
+  handleArea: { paddingTop: 10, marginBottom: 4 },
+  handle: { width: 40, height: 4, borderRadius: 2, alignSelf: "center", marginBottom: 16 },
+  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 },
+  typeBadge: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, borderWidth: 1 },
+  typeText: { fontSize: 11, fontFamily: "Inter_600SemiBold", textTransform: "uppercase", letterSpacing: 0.6 },
+  closeBtn: { padding: 4 },
+  title: { fontSize: 19, fontFamily: "Inter_700Bold", lineHeight: 25, marginBottom: 6 },
+  description: { fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20, marginBottom: 14 },
+  metaRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 10, flexWrap: "wrap" },
+  metaItem: { flexDirection: "row", alignItems: "center", gap: 5, marginBottom: 6 },
+  metaText: { fontSize: 13, fontFamily: "Inter_400Regular" },
+  statusBadge: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 8 },
+  statusText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
 });

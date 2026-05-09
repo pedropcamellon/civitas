@@ -2,9 +2,10 @@ import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { useColors } from "@/hooks/useColors";
 import { CivicIncident } from "@/context/MapContext";
+import { CargoRouteWeb } from "./CargoRoute";
 
 // Web fallback — react-native-maps is native-only.
-// The full interactive map is available in Expo Go on your device.
+// Full interactive map available in Expo Go on your device.
 
 export const MIAMI_REGION = {
   latitude: 25.7617,
@@ -17,11 +18,12 @@ interface Props {
   mapRef: React.RefObject<null>;
   incidents: CivicIncident[];
   userHasLocation: boolean;
+  showCargoRoute: boolean;
   onMarkerPress: (incident: CivicIncident) => void;
   onMapPress: () => void;
 }
 
-export function CivicMapView({ incidents, onMarkerPress }: Props) {
+export function CivicMapView({ incidents, showCargoRoute, onMarkerPress }: Props) {
   const colors = useColors();
 
   const colorMap: Record<string, string> = {
@@ -29,6 +31,7 @@ export function CivicMapView({ incidents, onMarkerPress }: Props) {
     requests311: colors.requests311 as string,
     permits:     colors.permits     as string,
     water:       colors.water       as string,
+    cargo:       colors.cargo       as string,
   };
 
   return (
@@ -47,15 +50,6 @@ export function CivicMapView({ incidents, onMarkerPress }: Props) {
             style={[styles.vLine, { left: `${(i + 1) * 14}%` as any, borderColor: colors.border + "40" }]}
           />
         ))}
-      </View>
-
-      <View style={styles.hint}>
-        <Text style={[styles.hintTitle, { color: colors.foreground }]}>
-          Interactive Map
-        </Text>
-        <Text style={[styles.hintSub, { color: colors.mutedForeground }]}>
-          Scan the QR code with Expo Go{"\n"}for the full map experience
-        </Text>
       </View>
 
       {/* Incident dots mapped to Miami bounding box */}
@@ -80,6 +74,18 @@ export function CivicMapView({ incidents, onMarkerPress }: Props) {
           />
         );
       })}
+
+      {/* Animated cargo route overlay */}
+      {showCargoRoute && <CargoRouteWeb />}
+
+      <View style={styles.hint}>
+        <Text style={[styles.hintTitle, { color: colors.foreground }]}>
+          Interactive Map
+        </Text>
+        <Text style={[styles.hintSub, { color: colors.mutedForeground as string }]}>
+          Scan the QR code with Expo Go{"\n"}for the full map experience
+        </Text>
+      </View>
     </View>
   );
 }

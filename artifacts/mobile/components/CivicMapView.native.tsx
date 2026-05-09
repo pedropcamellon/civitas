@@ -3,6 +3,7 @@ import { StyleSheet, View } from "react-native";
 import MapView, { Marker, PROVIDER_DEFAULT, Region } from "react-native-maps";
 import { useColors } from "@/hooks/useColors";
 import { CivicIncident } from "@/context/MapContext";
+import { CargoRoute } from "./CargoRoute.native";
 
 export const MIAMI_REGION: Region = {
   latitude: 25.7617,
@@ -15,6 +16,7 @@ interface Props {
   mapRef: React.RefObject<MapView>;
   incidents: CivicIncident[];
   userHasLocation: boolean;
+  showCargoRoute: boolean;
   onMarkerPress: (incident: CivicIncident) => void;
   onMapPress: () => void;
 }
@@ -32,6 +34,7 @@ function IncidentMarker({
     requests311: colors.requests311 as string,
     permits:     colors.permits     as string,
     water:       colors.water       as string,
+    cargo:       colors.cargo       as string,
   };
   const color = colorMap[incident.type] ?? (colors.primary as string);
 
@@ -52,6 +55,7 @@ export function CivicMapView({
   mapRef,
   incidents,
   userHasLocation,
+  showCargoRoute,
   onMarkerPress,
   onMapPress,
 }: Props) {
@@ -73,6 +77,7 @@ export function CivicMapView({
           onPress={() => onMarkerPress(incident)}
         />
       ))}
+      {showCargoRoute && <CargoRoute />}
     </MapView>
   );
 }
