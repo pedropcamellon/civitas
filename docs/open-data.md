@@ -8,274 +8,175 @@ nav_order: 4
 
 > Status markers: `✅ Done` | `🚧 In Progress` | `📐 Specified`
 
-Civitas **never fetches from external APIs during a user session**. Instead, data is pulled from Miami-Dade open data sources on a schedule, normalized, and written to `data/incidents.json`. The app always reads from that stored file, filtered by the user's selected time window.
+Civitas **never fetches from external APIs during a user session**. Instead, data is pulled from Miami-Dade open data sources on demand, normalized, and written to `data/incidents.json`. The app always reads from that stored file, filtered by the user's selected time window.
 
 ```
- ┌─────────────────┐     scheduled      ┌────────────────────┐     always
- │  Socrata APIs   │ ──── ingest job ──▶ │ data/incidents.json │ ──── served ──▶ map
- │  (Miami-Dade)   │                     │ (flat file, git)   │
- └─────────────────┘                     └────────────────────┘
-```
-
----
-
-## 1. Known data sources
-
-| ID | Layer | Protocol | Endpoint | Auth | Status |
-|----|-------|----------|----------|------|--------|
-| `miami-dade-311` | `311` | Socrata SODA | `https://opendata.miamidade.gov/resource/dj6j-qg5t.json` | App token (optional) | 📐 Specified |
-| `miami-pd-crime` | `crime` | Socrata SODA | `https://opendata.miamidade.gov/resource/ghx4-s5qi.json` | App token (optional) | 📐 Specified |
-| `miami-dade-permits` | `permits` | Socrata SODA | `https://opendata.miamidade.gov/resource/mxhq-a7mw.json` | App token (optional) | 📐 Specified |
-| `miami-water` | `water` | TBD | TBD | None | 📐 Specified |
-| `noaa-tides` | `water` | REST | `https://api.tidesandcurrents.noaa.gov/api/prod/` | None | 📐 Specified |
-| `seed` | all | In-process | `lib/civic-data/src/generate.ts` | None | ✅ Done |
-
-### Socrata SODA basics
-
-- Base URL: `https://{domain}/resource/{dataset-id}.json`
-- Pagination: `$limit` + `$offset` (default 1000, max 50 000 per page)
-- Time filter: `$where=date_col > '2025-01-01T00:00:00.000'`
-- Sort: `$order=date_col DESC`
-- Rate limit: 1 000 req/hour unauthenticated → 10 000 with app token
-- Token: `X-App-Token` header or `$$app_token` query param
-
-### Seed data notes (`generate.ts`) ✅
-
-`generate()` produces deterministic-ish seed data used until the first real ingest run:
-
-- **Crime (150 records)** — 60 % of records are placed in historically higher-density neighborhoods (Liberty City, Overtown, Little Havana, Downtown, Allapattah, Hialeah, North Miami, Homestead). 40 % are spread across all neighborhoods.
-- **311 (180 records)** — uniform random across all neighborhoods.
-- **Permits (120 records)** — uniform random across all neighborhoods.
-- **Water events (90 records)** — transient advisories (boil-water, main break, discolored water, etc.).
-- **Water infrastructure (12 fixed records)** — real Miami-Dade Water & Sewer facilities with accurate coordinates: Hialeah WTP, John E. Preston WTP, Alexander Orr Jr. WTP, South District WTP, plus pump stations and reservoirs across Brickell, South Beach, Wynwood, Hialeah, Kendall, Doral, North Miami, and Coral Gables. These carry `subtype: "infrastructure"` and are always present.
-
----
-
-## 2. Ingest pipeline
-
-The ingest job runs outside of any user request. It is a standalone script (or GitHub Actions workflow) that:
-
-1. Fetches the last N days from each registered source
-2. Validates and normalizes each record to `NormalizedIncident`
-3. Deduplicates by `externalId` across sources for the same layer
-4. Merges into a single array and writes `data/incidents.json`
-5. Commits the file (if run in CI) → triggers Vercel redeploy
-
-```ts
-// scripts/ingest.ts (📐 Specified)
-await runIngest({
-  layers: ["crime", "311", "permit", "water"],
-  since: subDays(new Date(), 30).toISOString(),
-  outputPath: "data/incidents.json",
-});
-```
-
-If **any** source fails during ingest, that source is skipped and its last known records (from the existing `data/incidents.json`) are preserved. A partial ingest is better than losing all data for a layer.
-
----
-
-## 3. File structure
-
-```
-lib/civic-data/src/
-  sources/
-    adapter.ts         ← SourceAdapter interface + NormalizedIncident
-    registry.ts        ← register(), getForLayer(), all()
-    pipeline.ts        ← fetch → validate → normalize stages
-    miami311.ts        ← SourceAdapter for miami-dade-311
-    miamiCrime.ts      ← SourceAdapter for miami-pd-crime
-    miamiPermits.ts    ← SourceAdapter for miami-dade-permits
-    water.ts           ← SourceAdapter for miami-water + noaa-tides
-    seed.ts            ← SourceAdapter wrapping generate.ts (always available)
-    index.ts           ← registers all adapters, re-exports registry
-  ingest.ts            ← runIngest(): orchestrates pipeline, writes output file
-  types.ts             ← RawIncident (unchanged public surface)
-  scoring.ts           ← unchanged
-  neighborhoods.ts     ← unchanged
-  generate.ts          ← unchanged (consumed by seed.ts as fallback)
-  index.ts             ← barrel re-exports
-
-scripts/
-  ingest.ts            ← CLI entry point: calls runIngest(), logs summary
-
-data/
-  incidents.json       ← output of last ingest (or seed if ingest never ran)
-  neighborhoods.json   ← static neighborhood list
+ ┌──────────────────┐    pnpm ingest     ┌────────────────────┐     always
+ │  ArcGIS Feature  │ ──── on demand ──▶ │ data/incidents.json │ ──── served ──▶ map
+ │  Services (MDC)  │                    │ (flat file, git)    │
+ └──────────────────┘                    └────────────────────┘
 ```
 
 ---
 
-## 4. Adapter interface (`sources/adapter.ts`)
+## Portal: ArcGIS Hub
 
-```ts
-export type IncidentLayer = "crime" | "311" | "permit" | "water";
+Miami-Dade migrated from Socrata to **ArcGIS Hub** — `opendata.miamidade.gov` now
+redirects to an ArcGIS Hub instance. All datasets are **ArcGIS Feature Services**,
+not Socrata SODA endpoints.
 
-export interface SourceMeta {
-  id: string;
-  layer: IncidentLayer;
-  label: string;
-  attribution: string;
-}
-
-export interface FetchOptions {
-  since: string;          // ISO timestamp — fetch records after this date
-  limit?: number;         // max per page, default 1000
-  signal?: AbortSignal;
-}
-
-export interface SourceAdapter {
-  meta: SourceMeta;
-  fetch(options: FetchOptions): Promise<NormalizedIncident[]>;
-}
-
-// RawIncident + ingest-time provenance (stripped before writing to file)
-export interface NormalizedIncident extends RawIncident {
-  sourceId: string;
-  externalId: string;
-}
+**ArcGIS REST query pattern:**
+```
+GET {serviceUrl}/FeatureServer/{layerId}/query
+  ?f=json
+  &where={SQL expression}
+  &outFields={comma-separated fields}
+  &orderByFields={field} DESC
+  &resultRecordCount=2000
+  &resultOffset={n}
+  &returnGeometry=true
+  &outSR=4326
 ```
 
-`RawIncident` carries an optional `subtype` field used to distinguish fixed
-infrastructure records from transient events:
-
-```ts
-export interface RawIncident {
-  // ...
-  subtype?: "infrastructure";  // set for treatment plants, pump stations, etc.
-}
-```
-
-Infrastructure records are **never filtered by date** — they are always shown when the water layer is active.
+Pagination uses `resultRecordCount` + `resultOffset`. Response includes
+`exceededTransferLimit: true` when more pages exist.
 
 ---
 
-## 5. Field mappings
+## Data sources
 
-### miami-dade-311
+| ID | Layer | Service URL | Public? | Status |
+|----|-------|-------------|---------|--------|
+| `miami-dade-311` | `311` | `…/data_311_2023/FeatureServer/0` | ✅ 2023 and earlier | ✅ Done |
+| `miami-dade-jail-bookings` | `crime` | `…/miamidade_jail_data/FeatureServer/0` | ✅ May 2015–present | ✅ Done |
+| `miami-dade-permits` | `permit` | `…/BuildingPermit_gdb/FeatureServer/0` | ✅ 2003–present | ✅ Done |
+| `miami-water` | `water` | Water & Sewer dept — no public API found yet | ❌ | 📐 Specified |
+| `seed` | all | `lib/civic-data/src/generate.ts` | — | ✅ Done |
 
-| SODA field | RawIncident field |
-|------------|-------------------|
-| `case_number` | `id` (also `externalId`) |
+### Important caveats
+
+- **311**: Data is split into per-year Feature Services. The 2024+ services require an ArcGIS token (HTTP 499). The 2023 service is fully public. Ingest queries 2023 until a public 2024+ feed is available.
+- **Crime**: Miami-Dade does NOT publish a crime incident feed. `CrimeMapping.com` lists incidents but has no public API. Jail bookings is the closest proxy — covers arrests, not all reported crimes.
+- **Permits**: `BuildingPermit_gdb` is a single live service (2003–present). Date field `ISSUDATE` is epoch milliseconds. Geometry is returned in WGS84 (`outSR=4326`).
+- **Water**: Water & Sewer dept page exists on the portal but no advisory API was found.
+
+---
+
+## 3. Field mappings
+
+### miami-dade-311 (ArcGIS `data_311_2023`)
+
+| ArcGIS field | RawIncident field |
+|--------------|-------------------|
+| `ticket_id` | `id`, `externalId` |
 | `issue_type` | `title` |
 | `issue_description` | `description` |
-| `date_created` | `date` |
-| `status` | `status` |
-| `full_address` | `address` |
+| `ticket_created_date_time` (epoch ms) | `date` |
+| `ticket_status` | `status` |
+| `street_address` | `address` |
 | `latitude` / `longitude` | `lat` / `lon` |
-| geo lookup via `neighborhoods.ts` | `neighborhood` |
+| geo lookup | `neighborhood` |
 
-### miami-pd-crime
+### miami-dade-jail-bookings (crime proxy)
 
-| SODA field | RawIncident field |
-|------------|-------------------|
-| `case_number` | `id` |
-| `offense` | `title` |
-| `offense_description` | `description` |
-| `date_occurred` | `date` |
-| `disposition` | `status` |
+| ArcGIS field | RawIncident field |
+|--------------|-------------------|
+| `booking_number` | `id`, `externalId` |
+| `charge_description` | `title` |
+| `charge_type` | `description` |
+| `arrest_date` (epoch ms) | `date` |
+| `arrest_disposition` | `status` |
 | `address` | `address` |
-| `latitude` / `longitude` | `lat` / `lon` |
+| `latitude` / `longitude` (often null) | `lat` / `lon` (falls back to nearest neighborhood centroid) |
+| geo lookup | `neighborhood` |
 
-### miami-dade-permits
+### miami-dade-permits (ArcGIS `BuildingPermit_gdb`)
 
-| SODA field | RawIncident field |
-|------------|-------------------|
-| `permit_number` | `id` |
-| `work_type` | `title` |
-| `work_description` | `description` |
-| `issue_date` | `date` |
-| `status` | `status` |
-| `address` | `address` |
-| `latitude` / `longitude` | `lat` / `lon` |
+| ArcGIS field | RawIncident field |
+|--------------|-------------------|
+| `PROCNUM` | `id`, `externalId` |
+| `TYPE` | `title` |
+| `DESC1` | `description` |
+| `ISSUDATE` (epoch ms) | `date` |
+| `BPSTATUS` | `status` |
+| `ADDRESS` | `address` |
+| geometry x/y (WGS84) | `lat` / `lon` |
+| geo lookup | `neighborhood` |
 
 ---
 
-## 6. Serving ingested data
+## 4. Serving ingested data
 
-API routes never call external sources. They read from `data/incidents.json` and filter by the `since` query parameter:
+API routes read `data/incidents.json` via `loadIncidents()` at process start — no network calls.
 
-```ts
-// api/civic/[layer].ts
-const all = incidents.filter(i => i.type === layer);
-const since = req.query.since;
-const result = since
-  ? all.filter(i => new Date(i.date) >= new Date(since))
-  : all;
-res.json(result);
+**Year filter** (preferred): pass `?year=2023` — the server returns only incidents whose `date` falls in that calendar year.  
+**Date range filter** (legacy): pass `?since=ISO` for a lower-bound cutoff.
+
+```
+GET /api/civic/meta          → { years: [2023, 2024], latestDate, earliestDate, count }
+GET /api/civic/311?year=2023 → RawIncident[]
+GET /api/civic/crime?year=2023
+GET /api/civic/permits?year=2023
 ```
 
-The time window (`since`) is derived from the frontend's selected filter (24h / 7d / 30d). All filtering happens server-side; the frontend never receives the full dataset.
+`loadIncidents()` caches in memory for the process lifetime. Falls back to seed data if the file is missing or corrupt.
+
+The **TimelineBar** component calls `/api/civic/meta` on mount to get the `years` array, then renders one button per year. It defaults to the most recent year with data.
 
 ---
 
-## 7. Environment variables (ingest script only)
+## 5. Running ingest
+
+```sh
+# All layers, last 30 days
+pnpm --filter @workspace/scripts run ingest
+
+# Single layer
+pnpm --filter @workspace/scripts run ingest --layer=311
+
+# Full refresh (ignore existing data/incidents.json)
+pnpm --filter @workspace/scripts run ingest --full-refresh
+
+# Pull historical data (e.g. all of 2023)
+INGEST_SINCE_DAYS=900 pnpm --filter @workspace/scripts run ingest --layer=311
+```
+
+> **Data availability note**: The public 311 service (`data_311_2023`) covers Jan–Dec 2023.
+> Querying with a recent `since` date returns 0 records. Use `INGEST_SINCE_DAYS=900` to
+> reach 2023 data. The year selector in the UI shows only years that are actually present
+> in `data/incidents.json` — no empty states.
+
+---
+
+## Environment variables (ingest only)
 
 | Variable | Required | Default | Purpose |
 |----------|----------|---------|---------|
-| `SODA_APP_TOKEN` | No | — | Socrata rate-limit upgrade (10k req/hr) |
-| `INGEST_SINCE_DAYS` | No | `30` | How far back to pull on each run |
+| `INGEST_SINCE_DAYS` | No | `30` | How many days back to pull |
 | `INGEST_TIMEOUT_MS` | No | `30000` | Per-source HTTP timeout |
 
-These variables are only read by the ingest script. The app server and frontend have no knowledge of them.
+`SODA_APP_TOKEN` is no longer relevant — the portal is ArcGIS, not Socrata.
 
 ---
 
-## 8. Ingest schedule
-
-| Environment | Schedule | Mechanism |
-|-------------|----------|-----------|
-| CI / prod | Daily at 06:00 UTC | GitHub Actions cron |
-| Local dev | On demand | `pnpm run ingest` |
-
-A successful ingest commits the updated `data/incidents.json`, which triggers a Vercel redeploy. The app always serves from the last committed snapshot.
-
----
-
-## 9. Error handling
+## Error handling
 
 | Failure mode | Behavior |
 |--------------|----------|
-| Source HTTP timeout | Skip source, preserve existing records for that layer |
-| HTTP 429 | Skip source, log warning |
-| Malformed JSON | Skip source |
+| ArcGIS service error | Skip source, preserve existing records for that layer |
+| Adapter timeout | Skip source, log warning |
 | Record missing required field | Drop record, log warning, continue |
 | All sources fail | Write nothing — existing file preserved |
-| Ingest never ran | App serves seed data from `generate.ts` |
+| Ingest never ran | `loadIncidents()` returns seed data |
+| `data/incidents.json` corrupt | `loadIncidents()` returns seed data |
 
 ---
 
-## 10. Testing strategy
+## 8. Open gaps
 
-- **Adapter unit tests** — recorded `.json` fixture per source, no network calls
-- **Pipeline unit tests** — validate and normalize stages in isolation
-- **ingest.ts integration tests** — mocked adapters, verify merge + dedup + file write
-- **API route tests** — unchanged; consume `RawIncident[]` from file regardless of source
-- **No live API calls in CI ever**
+| Gap | Notes |
+|-----|-------|
+| Crime incident feed | MDPD does not publish one. Jail bookings is the only proxy. |
+| 2024+ 311 data | Requires ArcGIS token (HTTP 499 without it). Monitor MDC open data. |
+| Water advisories | No public API found. May require FOIA or manual check with Water & Sewer dept. |
 
----
-
-## 11. Implementation phases
-
-### Phase 1 — Adapter scaffold + 311 📐
-
-- [ ] `sources/adapter.ts` — SourceAdapter interface, NormalizedIncident
-- [ ] `sources/registry.ts` — SourceRegistry
-- [ ] `sources/pipeline.ts` — fetch → validate → normalize
-- [ ] `sources/seed.ts` — wraps generate.ts
-- [ ] `sources/miami311.ts` — first real adapter
-- [ ] `sources/index.ts` — registers seed + miami311
-- [ ] `ingest.ts` — runIngest() orchestrator
-- [ ] `scripts/ingest.ts` — CLI entry point
-- [ ] `.env.example` updated
-- [ ] GitHub Actions workflow: daily cron → `pnpm run ingest` → commit
-
-### Phase 2 — Crime + Permits 📐
-
-- [ ] `sources/miamiCrime.ts`
-- [ ] `sources/miamiPermits.ts`
-- [ ] Recorded fixtures + unit tests for both
-
-### Phase 3 — Water + NOAA 📐
-
-- [ ] `sources/water.ts` — advisory + tide level composite
-- [ ] Flood risk scoring enhancement in `scoring.ts`

@@ -4,20 +4,42 @@ title: Home
 nav_order: 1
 ---
 
-# Civitas — Documentation
+# Civitas
 
-Living docs that evolve alongside the codebase. Each doc tracks its own status markers:
-`✅ Done` · `🚧 In Progress` · `📐 Specified`
+**A map-first civic intelligence tool for South Florida.**
 
-## User Documentation
+Civitas turns Miami-Dade public data — crime incidents, 311 service calls, building permits, water quality readings — into a single interactive map. The map is the entire experience. Filters and panels are how you narrow what you see.
 
-- [User Guide](user-guide.md) — how to use the map, layers, filters, and panels
+> "Google Maps, but for civic activity."
 
-## Architecture & Infrastructure
+---
 
-- [Infrastructure](infrastructure.md) — Docker dev setup, Vercel deployment, data pipeline
-- [Open Data Integration](open-data.md) — Miami-Dade Socrata adapters, fallback strategy, env config
+## What Civitas does
 
-## Migration
+Data from Miami-Dade open data sources is ingested on a schedule and stored as a flat file. When you open the app, the map shows the last 30 days of civic activity across all active layers. Change the time window to 24 hours and the map updates instantly — no page reload, no new API call.
 
-- [Web Migration](web-migration.md) — Mobile → web port phases, component checklist, constraints
+Tap a dot to see what happened. Tap a neighborhood to get a summary: crime score, 311 count, water grade, top offense types, active permits. That's it.
+
+---
+
+## Where to start
+
+**Using the app** → [User Guide](user-guide.md)
+
+**Building or contributing** → [Infrastructure](infrastructure.md), then [Open Data Ingest](open-data.md)
+
+**Understanding why it exists** → [Motivation & History](motivation.md)
+
+**Porting from mobile** → [Web Migration](web-migration.md)
+
+---
+
+## Doc conventions
+
+These docs are written for three audiences: end users, developers, and AI agents. A few rules keep them useful for all three:
+
+- No code snippets — intent and decisions only, not implementation
+- No numbered headers — use descriptive titles
+- One topic per file — split before a file grows long
+- Store data source findings — field names, quirks, endpoint reliability belong here as permanent learnings
+- Status markers on every page: `✅ Done` · `🚧 In Progress` · `📐 Specified`
