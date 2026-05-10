@@ -7,6 +7,14 @@ function buildUrl(path: string, simCutoffIso: string): string {
   return `${API_BASE}${path}?since=${encodeURIComponent(simCutoffIso)}`;
 }
 
+async function safeJson<T>(url: string): Promise<T[]> {
+  const res = await fetch(url);
+  if (!res.ok) {
+    throw new Error(`HTTP ${res.status}`);
+  }
+  return (await res.json()) as T[];
+}
+
 export function useAllIncidents(simCutoffIso: string) {
   const [crime, setCrime] = useState<Incident[]>([]);
   const [requests311, setRequests311] = useState<Incident[]>([]);
@@ -33,16 +41,16 @@ export function useAllIncidents(simCutoffIso: string) {
     });
 
     Promise.all([
-      fetch(buildUrl("/civic/crime", simCutoffIso)).then((r) => r.json()),
-      fetch(buildUrl("/civic/311", simCutoffIso)).then((r) => r.json()),
-      fetch(buildUrl("/civic/permits", simCutoffIso)).then((r) => r.json()),
-      fetch(buildUrl("/civic/water", simCutoffIso)).then((r) => r.json()),
+      safeJson<Record<string, unknown>>(buildUrl("/civic/crime", simCutoffIso)),
+      safeJson<Record<string, unknown>>(buildUrl("/civic/311", simCutoffIso)),
+      safeJson<Record<string, unknown>>(buildUrl("/civic/permits", simCutoffIso)),
+      safeJson<Record<string, unknown>>(buildUrl("/civic/water", simCutoffIso)),
     ]).then(([c, r, p, w]) => {
       if (seq.current !== current) return;
-      setCrime((c as Record<string, unknown>[]).map(toIncident));
-      setRequests311((r as Record<string, unknown>[]).map(toIncident));
-      setPermits((p as Record<string, unknown>[]).map(toIncident));
-      setWater((w as Record<string, unknown>[]).map(toIncident));
+      setCrime(c.map(toIncident));
+      setRequests311(r.map(toIncident));
+      setPermits(p.map(toIncident));
+      setWater(w.map(toIncident));
       setLoading(false);
     }).catch(() => {
       if (seq.current !== current) return;
@@ -63,9 +71,19 @@ export function useNeighborhoodReport(lat: number | null, lon: number | null) {
     const current = ++seq.current;
     setLoading(true);
     fetch(`${API_BASE}/neighborhood/report?lat=${lat}&lon=${lon}`)
-      .then((r) => r.json())
-      .then((d) => { if (seq.current === current) { setData(d as Record<string, unknown>); setLoading(false); } })
-      .catch(() => { if (seq.current === current) setLoading(false); });
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
+      .then((d) => {
+        if (seq.current === current) {
+          setData(d as Record<string, unknown>);
+          setLoading(false);
+        }
+      })
+      .catch(() => {
+        if (seq.current === current) setLoading(false);
+      });
   }, [lat, lon]);
 
   return { data, loading, refresh: () => { seq.current++; } };

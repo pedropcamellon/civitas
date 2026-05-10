@@ -56,11 +56,7 @@ export function TimeControls({
 
   return (
     <div style={panel}>
-      <button
-        onClick={() => onSimDayOffsetChange(30)}
-        style={{ background: "none", border: "none", cursor: "pointer", color: c.muted, padding: 4 }}
-        title="Reset to 30 days ago"
-      >
+      <button onClick={() => onSimDayOffsetChange(30)} style={{ background: "none", border: "none", cursor: "pointer", color: c.muted, padding: 4 }} title="Reset to 30 days ago">
         <SkipBack size={18} />
       </button>
 
@@ -78,11 +74,7 @@ export function TimeControls({
         {isPlaying ? <Pause size={16} /> : <Play size={16} />}
       </button>
 
-      <button
-        onClick={() => onSimDayOffsetChange(0)}
-        style={{ background: "none", border: "none", cursor: "pointer", color: c.muted, padding: 4 }}
-        title="Jump to now"
-      >
+      <button onClick={() => onSimDayOffsetChange(0)} style={{ background: "none", border: "none", cursor: "pointer", color: c.muted, padding: 4 }} title="Jump to now">
         <SkipForward size={18} />
       </button>
 

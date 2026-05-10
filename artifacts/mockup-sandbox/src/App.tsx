@@ -75,6 +75,9 @@ export default function App() {
   const [searchOpen, setSearchOpen] = useState(false);
   const playRef = useRef<number | null>(null);
   const lastPlayRef = useRef<number | null>(null);
+  const [cargoProgress, setCargoProgress] = useState(0);
+  const cargoRef = useRef<number | null>(null);
+  const cargoLastRef = useRef<number | null>(null);
 
   const c = THEMES[theme];
 
@@ -124,6 +127,30 @@ export default function App() {
       lastPlayRef.current = null;
     };
   }, [isPlaying, speed]);
+
+  useEffect(() => {
+    if (!visible.cargo || !isPlaying) {
+      if (cargoRef.current) cancelAnimationFrame(cargoRef.current);
+      cargoRef.current = null;
+      cargoLastRef.current = null;
+      return;
+    }
+
+    function tick(now: number) {
+      if (cargoLastRef.current === null) cargoLastRef.current = now;
+      const dt = (now - cargoLastRef.current) / 1000;
+      cargoLastRef.current = now;
+      setCargoProgress((prev) => (prev + dt / 14) % 1);
+      cargoRef.current = requestAnimationFrame(tick);
+    }
+
+    cargoRef.current = requestAnimationFrame(tick);
+    return () => {
+      if (cargoRef.current) cancelAnimationFrame(cargoRef.current);
+      cargoRef.current = null;
+      cargoLastRef.current = null;
+    };
+  }, [visible.cargo, isPlaying]);
 
   const handleToggleLayer = useCallback((key: LayerKey) => {
     setVisible((v) => ({ ...v, [key]: !v[key] }));
@@ -238,7 +265,7 @@ export default function App() {
           onSelect={setSelected}
         />
 
-        <CargoLayer visible={visible.cargo} isPlaying={isPlaying} c={c} />
+        <CargoLayer visible={visible.cargo} isPlaying={isPlaying} c={c} progress={cargoProgress} />
       </MapContainer>
 
       <div style={{ position: "fixed", top: 14, left: 14, zIndex: 950 }}>

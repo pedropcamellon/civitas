@@ -9,25 +9,6 @@ interface NeighborhoodPanelProps {
   c: Theme;
 }
 
-function ScoreBadge({ value, color, size = "md" }: { value: string; color: string; size?: "sm" | "md" | "lg" }) {
-  const sizes = { sm: { fontSize: 13, pad: "3px 10px" }, md: { fontSize: 16, pad: "5px 14px" }, lg: { fontSize: 22, pad: "6px 18px" } };
-  const s = sizes[size];
-  return (
-    <span style={{
-      display: "inline-block",
-      fontSize: s.fontSize,
-      fontWeight: 800,
-      color,
-      background: color + "20",
-      borderRadius: 99,
-      padding: s.pad,
-      border: `1px solid ${color}40`,
-    }}>
-      {value}
-    </span>
-  );
-}
-
 export function NeighborhoodPanel({ report, loading, onClose, onRefresh, c }: NeighborhoodPanelProps) {
   const panel: React.CSSProperties = {
     position: "fixed",
@@ -81,38 +62,10 @@ export function NeighborhoodPanel({ report, loading, onClose, onRefresh, c }: Ne
       )}
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 14 }}>
-        <StatCard
-          label="Crime Level"
-          value={report.crimeLabel}
-          sub={`${report.crimeCount} incidents`}
-          color={report.crimeColor}
-          icon={<ShieldAlert size={14} />}
-          c={c}
-        />
-        <StatCard
-          label="Water Quality"
-          value={`${report.waterGrade} · ${report.waterLabel}`}
-          sub={`${report.waterIncidents} issues`}
-          color={report.waterColor}
-          icon={<Droplets size={14} />}
-          c={c}
-        />
-        <StatCard
-          label="311 Open"
-          value={String(report.requests311Count)}
-          sub="Service requests"
-          color={c.requests311}
-          icon={<Building2 size={14} />}
-          c={c}
-        />
-        <StatCard
-          label="Permits"
-          value={String(report.permitsCount)}
-          sub="Active permits"
-          color={c.permits}
-          icon={<Package size={14} />}
-          c={c}
-        />
+        <StatCard label="Crime Level" value={report.crimeLabel} sub={`${report.crimeCount} incidents`} color={report.crimeColor} icon={<ShieldAlert size={14} />} c={c} />
+        <StatCard label="Water Quality" value={`${report.waterGrade} · ${report.waterLabel}`} sub={`${report.waterIncidents} issues`} color={report.waterColor} icon={<Droplets size={14} />} c={c} />
+        <StatCard label="311 Open" value={String(report.requests311Count)} sub="Service requests" color={c.requests311} icon={<Building2 size={14} />} c={c} />
+        <StatCard label="Permits" value={String(report.permitsCount)} sub="Active permits" color={c.permits} icon={<Package size={14} />} c={c} />
       </div>
 
       {report.topCrimeTypes.length > 0 && (
@@ -147,16 +100,9 @@ export function NeighborhoodPanel({ report, loading, onClose, onRefresh, c }: Ne
   );
 }
 
-function StatCard({
-  label, value, sub, color, icon, c,
-}: {
-  label: string; value: string; sub: string; color: string; icon: React.ReactNode; c: Theme;
-}) {
+function StatCard({ label, value, sub, color, icon, c, }: { label: string; value: string; sub: string; color: string; icon: React.ReactNode; c: Theme; }) {
   return (
-    <div style={{
-      padding: "10px 12px", borderRadius: 12,
-      background: color + "12", border: `1px solid ${color}30`,
-    }}>
+    <div style={{ padding: "10px 12px", borderRadius: 12, background: color + "12", border: `1px solid ${color}30` }}>
       <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 5 }}>
         <span style={{ color }}>{icon}</span>
         <span style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.1em", color: c.muted }}>{label}</span>
