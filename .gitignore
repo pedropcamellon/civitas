@@ -47,3 +47,9 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+.vercel
+
+# Ingest output — committed after first successful run, ignored during dev
+# data/incidents.json
+.env
+.env.local

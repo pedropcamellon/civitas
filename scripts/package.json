@@ -5,7 +5,11 @@
   "type": "module",
   "scripts": {
     "hello": "tsx ./src/hello.ts",
+    "ingest": "tsx ./src/ingest.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@workspace/civic-data": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",
