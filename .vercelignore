@@ -1,5 +1,6 @@
 node_modules
 .pnpm-store
+.local
 artifacts/api-server
 artifacts/civitas
 artifacts/mobile
@@ -8,3 +9,8 @@ docker-compose.yml
 Dockerfile
 docs
 attached_assets
+scripts
+data
+pnpm-lock.yaml
+*.log
+.git
