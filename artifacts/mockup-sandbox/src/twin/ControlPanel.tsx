@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Layers3,
   ShieldAlert,
@@ -6,8 +6,7 @@ import {
   Package,
   Droplets,
   Truck,
-  ChevronLeft,
-  ChevronRight,
+  ChevronDown,
   Lock,
 } from "lucide-react";
 import type { Theme, LayerKey } from "./types";
@@ -27,65 +26,113 @@ const ICONS: Record<LayerKey, typeof ShieldAlert> = {
   cargo: Truck,
 };
 
+function useIsMobile() {
+  const [mobile, setMobile] = useState(() => window.innerWidth < 768);
+  useEffect(() => {
+    const fn = () => setMobile(window.innerWidth < 768);
+    window.addEventListener("resize", fn);
+    return () => window.removeEventListener("resize", fn);
+  }, []);
+  return mobile;
+}
+
 export function ControlPanel({ visible, onToggle, c }: ControlPanelProps) {
-  const [collapsed, setCollapsed] = useState(false);
+  const [layersOpen, setLayersOpen] = useState(true);
+  const [comingSoonOpen, setComingSoonOpen] = useState(false);
+  const isMobile = useIsMobile();
 
   const activeCount = Object.values(visible).filter(Boolean).length;
 
-  const panel: React.CSSProperties = {
-    position: "fixed",
-    left: collapsed ? -220 : 12,
-    top: "50%",
-    transform: "translateY(-50%)",
-    width: 232,
-    background: c.panel,
-    border: `1px solid ${c.border}`,
-    borderRadius: 20,
-    padding: collapsed ? 0 : 16,
-    backdropFilter: "blur(20px)",
-    WebkitBackdropFilter: "blur(20px)",
-    zIndex: 900,
-    transition: "left 0.3s ease",
-    boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
-  };
+  // ── Mobile: bottom bar ───────────────────────────────────────────────────
+  if (isMobile) {
+    return (
+      <div style={{
+        position: "fixed", bottom: 80, left: 10, right: 10, zIndex: 900,
+        background: c.panel, border: `1px solid ${c.border}`,
+        borderRadius: 16, padding: "8px 10px",
+        backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)",
+        boxShadow: "0 -4px 24px rgba(0,0,0,0.4)",
+        display: "flex", alignItems: "center", gap: 6,
+      }}>
+        <Layers3 size={14} color={c.primary} style={{ flexShrink: 0 }} />
+        <div style={{ display: "flex", gap: 5, flex: 1, flexWrap: "wrap" }}>
+          {LAYER_CONFIG.map(({ key, label, colorKey }) => {
+            const Icon = ICONS[key];
+            const color = c[colorKey as keyof Theme] as string;
+            const on = visible[key];
+            return (
+              <button
+                key={key}
+                onClick={() => onToggle(key)}
+                title={label}
+                style={{
+                  display: "flex", alignItems: "center", gap: 4,
+                  padding: "4px 8px", borderRadius: 8,
+                  border: `1px solid ${on ? color + "66" : c.border}`,
+                  background: on ? color + "22" : "transparent",
+                  cursor: "pointer",
+                }}
+              >
+                <Icon size={12} color={on ? color : c.muted} />
+                <span style={{ fontSize: 11, fontWeight: 600, color: on ? c.text : c.muted }}>{label}</span>
+              </button>
+            );
+          })}
+        </div>
+        <span style={{
+          fontSize: 10, background: c.primary + "22", color: c.primary,
+          borderRadius: 99, padding: "2px 6px", fontWeight: 700, flexShrink: 0,
+        }}>{activeCount}</span>
+      </div>
+    );
+  }
 
-  const toggleBtn: React.CSSProperties = {
-    position: "absolute",
-    right: -14,
-    top: "50%",
-    transform: "translateY(-50%)",
-    width: 28,
-    height: 52,
-    background: c.panel,
-    border: `1px solid ${c.border}`,
-    borderRadius: "0 10px 10px 0",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    cursor: "pointer",
-    color: c.muted,
-    backdropFilter: "blur(20px)",
-  };
-
+  // ── Desktop: left sidebar ────────────────────────────────────────────────
   return (
-    <div style={panel}>
-      {!collapsed && (
-        <>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
-            <Layers3 size={16} color={c.primary} />
-            <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase", color: c.muted }}>
-              Layers
-            </span>
-            <span style={{
-              marginLeft: "auto", fontSize: 11, background: c.primary + "22",
-              color: c.primary, borderRadius: 99, padding: "2px 8px", fontWeight: 700,
-            }}>
-              {activeCount} on
-            </span>
-          </div>
+    <div style={{
+      position: "fixed",
+      left: 12,
+      top: 14,
+      width: 220,
+      background: c.panel,
+      border: `1px solid ${c.border}`,
+      borderRadius: 18,
+      padding: "10px 12px",
+      backdropFilter: "blur(20px)",
+      WebkitBackdropFilter: "blur(20px)",
+      zIndex: 900,
+      boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
+    }}>
+      {/* Collapsible header */}
+      <button
+        onClick={() => setLayersOpen((v) => !v)}
+        style={{
+          display: "flex", alignItems: "center", gap: 6, width: "100%",
+          background: "none", border: "none", cursor: "pointer", padding: "2px 0",
+          marginBottom: layersOpen ? 10 : 0,
+        }}
+      >
+        <Layers3 size={14} color={c.primary} />
+        <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase", color: c.muted }}>
+          Layers
+        </span>
+        <span style={{
+          marginLeft: "auto", fontSize: 10, background: c.primary + "22",
+          color: c.primary, borderRadius: 99, padding: "1px 7px", fontWeight: 700,
+        }}>
+          {activeCount} on
+        </span>
+        <ChevronDown
+          size={12}
+          color={c.muted}
+          style={{ transform: layersOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }}
+        />
+      </button>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {LAYER_CONFIG.map(({ key, label, description, colorKey }) => {
+      {layersOpen && (
+        <>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            {LAYER_CONFIG.map(({ key, label, colorKey }) => {
               const Icon = ICONS[key];
               const color = c[colorKey as keyof Theme] as string;
               const on = visible[key];
@@ -95,46 +142,33 @@ export function ControlPanel({ visible, onToggle, c }: ControlPanelProps) {
                   key={key}
                   onClick={() => onToggle(key)}
                   style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 10,
-                    padding: "9px 10px",
-                    borderRadius: 12,
+                    display: "flex", alignItems: "center", gap: 8,
+                    padding: "6px 8px", borderRadius: 10,
                     border: `1px solid ${on ? color + "55" : c.border}`,
                     background: on ? color + "18" : "transparent",
-                    cursor: "pointer",
-                    transition: "all 0.15s ease",
-                    textAlign: "left",
-                    width: "100%",
+                    cursor: "pointer", transition: "all 0.15s ease",
+                    textAlign: "left", width: "100%",
                   }}
                 >
                   <div style={{
-                    width: 30, height: 30, borderRadius: 8,
+                    width: 26, height: 26, borderRadius: 7,
                     background: on ? color + "33" : c.panel2,
                     display: "flex", alignItems: "center", justifyContent: "center",
                     flexShrink: 0,
                   }}>
-                    <Icon size={15} color={on ? color : c.muted} />
+                    <Icon size={13} color={on ? color : c.muted} />
                   </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: on ? c.text : c.muted }}>{label}</div>
-                    <div style={{ fontSize: 11, color: c.muted, marginTop: 1 }}>{description}</div>
-                  </div>
+                  <span style={{ flex: 1, fontSize: 12, fontWeight: 600, color: on ? c.text : c.muted }}>{label}</span>
                   <div style={{
-                    width: 32, height: 18, borderRadius: 99,
+                    width: 28, height: 16, borderRadius: 99,
                     background: on ? color : c.panel2,
                     border: `1px solid ${on ? color : c.border}`,
-                    position: "relative",
-                    flexShrink: 0,
-                    transition: "background 0.2s ease",
+                    position: "relative", flexShrink: 0, transition: "background 0.2s ease",
                   }}>
                     <div style={{
-                      position: "absolute",
-                      top: 2, left: on ? 14 : 2,
-                      width: 12, height: 12,
-                      borderRadius: "50%",
-                      background: on ? "#fff" : c.muted,
-                      transition: "left 0.2s ease",
+                      position: "absolute", top: 2, left: on ? 12 : 2,
+                      width: 10, height: 10, borderRadius: "50%",
+                      background: on ? "#fff" : c.muted, transition: "left 0.2s ease",
                     }} />
                   </div>
                 </button>
@@ -142,31 +176,38 @@ export function ControlPanel({ visible, onToggle, c }: ControlPanelProps) {
             })}
           </div>
 
-          <div style={{ marginTop: 14, borderTop: `1px solid ${c.border}`, paddingTop: 12 }}>
-            <div style={{ fontSize: 10, letterSpacing: "0.15em", textTransform: "uppercase", color: c.muted, marginBottom: 8 }}>
-              Coming soon
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-              {COMING_SOON_LAYERS.map(({ label, description }) => (
+          <button
+            onClick={() => setComingSoonOpen((v) => !v)}
+            style={{
+              display: "flex", alignItems: "center", gap: 4, width: "100%",
+              marginTop: 10, paddingTop: 8, borderTop: `1px solid ${c.border}`,
+              background: "none", border: "none", cursor: "pointer",
+              fontSize: 9, letterSpacing: "0.15em", textTransform: "uppercase", color: c.muted,
+            }}
+          >
+            Coming soon
+            <ChevronDown
+              size={10}
+              color={c.muted}
+              style={{ marginLeft: "auto", transform: comingSoonOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }}
+            />
+          </button>
+
+          {comingSoonOpen && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 3, marginTop: 6 }}>
+              {COMING_SOON_LAYERS.map(({ label }) => (
                 <div key={label} style={{
-                  display: "flex", alignItems: "center", gap: 8, padding: "7px 10px",
-                  borderRadius: 10, border: `1px dashed ${c.border}`, opacity: 0.5,
+                  display: "flex", alignItems: "center", gap: 6, padding: "5px 8px",
+                  borderRadius: 8, border: `1px dashed ${c.border}`, opacity: 0.45,
                 }}>
-                  <Lock size={12} color={c.muted} />
-                  <div>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: c.muted }}>{label}</div>
-                    <div style={{ fontSize: 10, color: c.muted }}>{description}</div>
-                  </div>
+                  <Lock size={10} color={c.muted} />
+                  <span style={{ fontSize: 11, fontWeight: 600, color: c.muted }}>{label}</span>
                 </div>
               ))}
             </div>
-          </div>
+          )}
         </>
       )}
-
-      <button onClick={() => setCollapsed((v) => !v)} style={toggleBtn}>
-        {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
-      </button>
     </div>
   );
 }

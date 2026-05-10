@@ -5,6 +5,7 @@ export type LayerKey = "crime" | "requests311" | "permits" | "water" | "cargo";
 export interface Incident {
   id: string;
   type: "crime" | "311" | "permit" | "water";
+  subtype?: "infrastructure";
   lat: number;
   lon: number;
   title: string;
@@ -135,7 +136,7 @@ export const LAYER_CONFIG: {
   { key: "requests311", label: "311 Calls", description: "Service requests",      colorKey: "requests311" },
   { key: "permits",     label: "Permits",   description: "Building permits",       colorKey: "permits"     },
   { key: "water",       label: "Water",     description: "Water quality & alerts", colorKey: "water"       },
-  { key: "cargo",       label: "Cargo",     description: "Port-to-Doral route",    colorKey: "cargo"       },
+  { key: "cargo",       label: "Logistics", description: "Freight: trucks, ships & air", colorKey: "cargo"       },
 ];
 
 export const COMING_SOON_LAYERS = [

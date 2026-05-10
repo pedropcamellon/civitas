@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { MapContainer, TileLayer, useMapEvents } from "react-leaflet";
+import { MapContainer, TileLayer, ZoomControl, useMapEvents } from "react-leaflet";
 import {
   MoonStar,
   SunMedium,
@@ -7,7 +7,7 @@ import {
   RefreshCw,
   Search,
   X,
-  ChevronDown,
+  Settings,
 } from "lucide-react";
 
 import { THEMES, SF_CENTER, SF_ZOOM } from "./twin/types";
@@ -16,7 +16,6 @@ import { useAllIncidents, useNeighborhoodReport } from "./twin/useIncidents";
 import { CargoLayer } from "./twin/CargoLayer";
 import { IncidentLayer } from "./twin/IncidentLayer";
 import { ControlPanel } from "./twin/ControlPanel";
-import { TimeControls } from "./twin/TimeControls";
 import { NeighborhoodPanel } from "./twin/NeighborhoodPanel";
 import { IncidentModal } from "./twin/IncidentModal";
 
@@ -64,17 +63,14 @@ export default function App() {
     water: true,
     cargo: true,
   });
-  const [simDayOffset, setSimDayOffset] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [speed, setSpeed] = useState(1);
+  const [simDayOffset] = useState(0);
   const [selected, setSelected] = useState<Incident | null>(null);
   const [reportCoord, setReportCoord] = useState<{ lat: number; lon: number; name: string } | null>({
     lat: 25.7617, lon: -80.1918, name: "Brickell",
   });
   const [search, setSearch] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
-  const playRef = useRef<number | null>(null);
-  const lastPlayRef = useRef<number | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [cargoProgress, setCargoProgress] = useState(0);
   const cargoRef = useRef<number | null>(null);
   const cargoLastRef = useRef<number | null>(null);
@@ -94,42 +90,16 @@ export default function App() {
 
   const report = reportRaw as NeighborhoodReport | null;
 
+  // Close settings menu on outside click
   useEffect(() => {
-    if (!isPlaying) {
-      if (playRef.current) cancelAnimationFrame(playRef.current);
-      playRef.current = null;
-      lastPlayRef.current = null;
-      return;
-    }
-
-    function tick(now: number) {
-      if (lastPlayRef.current === null) lastPlayRef.current = now;
-      const dt = (now - lastPlayRef.current) / 1000;
-      lastPlayRef.current = now;
-
-      setSimDayOffset((prev) => {
-        const next = prev - dt * speed;
-        if (next <= 0) {
-          setIsPlaying(false);
-          return 0;
-        }
-        return next;
-      });
-
-      playRef.current = requestAnimationFrame(tick);
-    }
-
-    playRef.current = requestAnimationFrame(tick);
-
-    return () => {
-      if (playRef.current) cancelAnimationFrame(playRef.current);
-      playRef.current = null;
-      lastPlayRef.current = null;
-    };
-  }, [isPlaying, speed]);
+    if (!settingsOpen) return;
+    const handler = () => setSettingsOpen(false);
+    window.addEventListener("click", handler);
+    return () => window.removeEventListener("click", handler);
+  }, [settingsOpen]);
 
   useEffect(() => {
-    if (!visible.cargo || !isPlaying) {
+    if (!visible.cargo) {
       if (cargoRef.current) cancelAnimationFrame(cargoRef.current);
       cargoRef.current = null;
       cargoLastRef.current = null;
@@ -150,7 +120,7 @@ export default function App() {
       cargoRef.current = null;
       cargoLastRef.current = null;
     };
-  }, [visible.cargo, isPlaying]);
+  }, [visible.cargo]);
 
   const handleToggleLayer = useCallback((key: LayerKey) => {
     setVisible((v) => ({ ...v, [key]: !v[key] }));
@@ -166,12 +136,11 @@ export default function App() {
     setReportCoord({ lat: best.lat, lon: best.lon, name: best.name });
   }, []);
 
-  const cycleTheme = () => {
-    setTheme((t) => t === "dark" ? "light" : t === "light" ? "neon" : "dark");
-  };
-
-  const themeIcon = theme === "dark" ? <MoonStar size={16} /> : theme === "light" ? <SunMedium size={16} /> : <Sparkles size={16} />;
-  const themeLabel = theme === "dark" ? "Dark" : theme === "light" ? "Light" : "Neon";
+  const THEMES_LIST: Array<{ name: ThemeName; icon: React.ReactNode; label: string }> = [
+    { name: "dark",  icon: <MoonStar size={13} />,  label: "Dark" },
+    { name: "light", icon: <SunMedium size={13} />, label: "Light" },
+    { name: "neon",  icon: <Sparkles size={13} />,  label: "Neon" },
+  ];
 
   const filteredNeighborhoods = NEIGHBORHOODS.filter((n) =>
     n.name.toLowerCase().includes(search.toLowerCase())
@@ -190,7 +159,7 @@ export default function App() {
   const topStyle: React.CSSProperties = {
     position: "fixed",
     top: 14,
-    left: 260,
+    left: 244,
     right: reportCoord ? 372 : 16,
     zIndex: 900,
     display: "flex",
@@ -220,6 +189,10 @@ export default function App() {
         ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: ${c.border}; border-radius: 99px; }
+        .leaflet-control-zoom { border: none !important; box-shadow: 0 4px 20px rgba(0,0,0,0.4) !important; border-radius: 10px !important; overflow: hidden; margin-bottom: 20px !important; margin-right: 16px !important; }
+        .leaflet-control-zoom a { background: ${c.panel} !important; color: ${c.text} !important; border: none !important; border-bottom: 1px solid ${c.border} !important; width: 32px !important; height: 32px !important; line-height: 32px !important; font-size: 18px !important; }
+        .leaflet-control-zoom a:last-child { border-bottom: none !important; }
+        .leaflet-control-zoom a:hover { background: ${c.panel2} !important; color: ${c.primary} !important; }
       `}</style>
 
       <MapContainer
@@ -229,6 +202,7 @@ export default function App() {
         zoomControl={false}
       >
         <TileLayer url={c.tileUrl} attribution={c.tileAttribution} maxZoom={19} />
+        <ZoomControl position="bottomright" />
 
         <MapClickHandler onMapClick={handleMapClick} />
 
@@ -265,16 +239,13 @@ export default function App() {
           onSelect={setSelected}
         />
 
-        <CargoLayer visible={visible.cargo} isPlaying={isPlaying} c={c} progress={cargoProgress} />
+        <CargoLayer visible={visible.cargo} c={c} progress={cargoProgress} />
       </MapContainer>
 
-      <div style={{ position: "fixed", top: 14, left: 14, zIndex: 950 }}>
-        <div style={{ ...glassCard, padding: "12px 16px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
-            <div style={{ width: 8, height: 8, borderRadius: "50%", background: c.primary, boxShadow: `0 0 8px ${c.primary}` }} />
-            <span style={{ fontWeight: 800, fontSize: 15, color: c.text }}>South Florida</span>
-          </div>
-          <div style={{ fontSize: 11, color: c.muted }}>Digital Twin</div>
+      <div style={{ position: "fixed", top: 18, left: "50%", transform: "translateX(-50%)", zIndex: 950, pointerEvents: "none" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ width: 8, height: 8, borderRadius: "50%", background: c.primary, boxShadow: `0 0 10px ${c.primary}` }} />
+          <span style={{ fontWeight: 800, fontSize: 15, color: c.text, textShadow: "0 1px 12px rgba(0,0,0,0.8)" }}>Civitas</span>
         </div>
       </div>
 
@@ -346,31 +317,43 @@ export default function App() {
           )}
         </div>
 
-        <button
-          onClick={cycleTheme}
-          style={{ ...glassCard, padding: "8px 14px", display: "flex", alignItems: "center", gap: 6, cursor: "pointer", color: c.text, fontSize: 12, fontWeight: 600, border: `1px solid ${c.border}` }}
-        >
-          {themeIcon}
-          {themeLabel}
-        </button>
+        <div style={{ position: "relative", flexShrink: 0 }}>
+          <button
+            onClick={(e) => { e.stopPropagation(); setSettingsOpen((v) => !v); }}
+            style={{ ...glassCard, padding: "8px 10px", display: "flex", alignItems: "center", gap: 5, cursor: "pointer", color: c.muted, border: `1px solid ${c.border}` }}
+          >
+            <Settings size={14} />
+          </button>
+          {settingsOpen && (
+            <div
+              style={{
+                position: "absolute", top: "calc(100% + 6px)", right: 0,
+                background: c.panel, border: `1px solid ${c.border}`, borderRadius: 12,
+                boxShadow: "0 8px 32px rgba(0,0,0,0.4)", overflow: "hidden",
+                backdropFilter: "blur(20px)", zIndex: 9999, minWidth: 130,
+              }}
+            >
+              <div style={{ padding: "6px 10px 4px", fontSize: 9, fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase", color: c.muted }}>Theme</div>
+              {THEMES_LIST.map(({ name, icon, label }) => (
+                <button
+                  key={name}
+                  onClick={() => { setTheme(name); setSettingsOpen(false); }}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 8,
+                    width: "100%", padding: "8px 12px", background: theme === name ? c.primary + "22" : "none",
+                    border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600,
+                    color: theme === name ? c.primary : c.text, textAlign: "left",
+                  }}
+                >
+                  {icon} {label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       <ControlPanel visible={visible} onToggle={handleToggleLayer} c={c} />
-
-      <TimeControls
-        simDayOffset={simDayOffset}
-        onSimDayOffsetChange={setSimDayOffset}
-        isPlaying={isPlaying}
-        onPlayPause={() => {
-          if (!isPlaying) {
-            if (simDayOffset <= 0) setSimDayOffset(30);
-          }
-          setIsPlaying((v) => !v);
-        }}
-        speed={speed}
-        onSpeedChange={setSpeed}
-        c={c}
-      />
 
       {reportCoord && report && (
         <NeighborhoodPanel
@@ -390,7 +373,6 @@ export default function App() {
         />
       )}
 
-      <Legend c={c} visible={visible} />
     </div>
   );
 }
@@ -403,34 +385,3 @@ function Dot({ color }: { color: string }) {
   );
 }
 
-function Legend({ c, visible }: { c: typeof THEMES.dark; visible: Record<LayerKey, boolean> }) {
-  const items: { key: LayerKey; label: string; colorKey: keyof typeof c }[] = [
-    { key: "crime",       label: "Crime",    colorKey: "crime"       },
-    { key: "requests311", label: "311",       colorKey: "requests311" },
-    { key: "permits",     label: "Permits",  colorKey: "permits"     },
-    { key: "water",       label: "Water",    colorKey: "water"       },
-    { key: "cargo",       label: "Cargo",    colorKey: "cargo"       },
-  ];
-
-  return (
-    <div style={{
-      position: "fixed", bottom: 90, right: 16, zIndex: 900,
-      background: c.panel, border: `1px solid ${c.border}`,
-      borderRadius: 12, padding: "10px 14px",
-      backdropFilter: "blur(20px)", boxShadow: "0 4px 24px rgba(0,0,0,0.3)",
-    }}>
-      <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.12em", color: c.muted, marginBottom: 6 }}>
-        Legend
-      </div>
-      {items.map(({ key, label, colorKey }) => (
-        <div key={key} style={{ display: "flex", alignItems: "center", gap: 6, padding: "3px 0", opacity: visible[key] ? 1 : 0.35 }}>
-          <span style={{ width: 9, height: 9, borderRadius: "50%", background: c[colorKey] as string, display: "inline-block", flexShrink: 0 }} />
-          <span style={{ fontSize: 11, color: c.text }}>{label}</span>
-        </div>
-      ))}
-      <div style={{ marginTop: 6, borderTop: `1px solid ${c.border}`, paddingTop: 5, fontSize: 10, color: c.muted }}>
-        Click map to inspect area
-      </div>
-    </div>
-  );
-}

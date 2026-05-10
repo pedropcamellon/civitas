@@ -30,6 +30,7 @@ export function useAllIncidents(simCutoffIso: string) {
     const toIncident = (raw: Record<string, unknown>): Incident => ({
       id: String(raw.id ?? ""),
       type: raw.type as Incident["type"],
+      subtype: raw.subtype as Incident["subtype"],
       lat: Number(raw.lat),
       lon: Number(raw.lon),
       title: String(raw.title ?? ""),

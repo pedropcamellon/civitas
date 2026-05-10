@@ -20,12 +20,11 @@ function getCargoPos(progress: number): [number, number] {
 
 interface CargoLayerProps {
   visible: boolean;
-  isPlaying: boolean;
   c: Theme;
   progress: number;
 }
 
-export function CargoLayer({ visible, isPlaying, c, progress }: CargoLayerProps) {
+export function CargoLayer({ visible, c, progress }: CargoLayerProps) {
   const pos = useMemo(() => getCargoPos(progress), [progress]);
 
   if (!visible) return null;
@@ -60,7 +59,7 @@ export function CargoLayer({ visible, isPlaying, c, progress }: CargoLayerProps)
       <Marker position={pos} icon={icon} />
       <Circle
         center={pos}
-        radius={isPlaying ? 450 : 250}
+        radius={450}
         pathOptions={{
           color: c.cargo,
           fillColor: c.cargo,

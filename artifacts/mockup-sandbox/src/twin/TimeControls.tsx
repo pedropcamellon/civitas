@@ -1,4 +1,4 @@
-import { Play, Pause, SkipBack, SkipForward, Gauge } from "lucide-react";
+import { Play, Pause, SkipBack, SkipForward } from "lucide-react";
 import type { Theme } from "./types";
 
 interface TimeControlsProps {
@@ -6,8 +6,6 @@ interface TimeControlsProps {
   onSimDayOffsetChange: (v: number) => void;
   isPlaying: boolean;
   onPlayPause: () => void;
-  speed: number;
-  onSpeedChange: (s: number) => void;
   c: Theme;
 }
 
@@ -22,15 +20,11 @@ function formatOffset(offset: number): string {
   return "30 days ago";
 }
 
-const SPEEDS = [0.5, 1, 2, 5];
-
 export function TimeControls({
   simDayOffset,
   onSimDayOffsetChange,
   isPlaying,
   onPlayPause,
-  speed,
-  onSpeedChange,
   c,
 }: TimeControlsProps) {
   const panel: React.CSSProperties = {
@@ -51,8 +45,6 @@ export function TimeControls({
     alignItems: "center",
     gap: 14,
   };
-
-  const nextSpeed = SPEEDS[(SPEEDS.indexOf(speed) + 1) % SPEEDS.length];
 
   return (
     <div style={panel}>
@@ -108,19 +100,6 @@ export function TimeControls({
         />
       </div>
 
-      <button
-        onClick={() => onSpeedChange(nextSpeed)}
-        title={`Speed: ${speed}x — click to change`}
-        style={{
-          display: "flex", alignItems: "center", gap: 5, padding: "5px 10px",
-          borderRadius: 8, border: `1px solid ${c.border}`,
-          background: c.panel2, cursor: "pointer", color: c.text,
-          fontSize: 12, fontWeight: 700, flexShrink: 0,
-        }}
-      >
-        <Gauge size={14} color={c.primary} />
-        {speed}×
-      </button>
     </div>
   );
 }
