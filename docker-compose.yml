@@ -1,0 +1,49 @@
+services:
+  civitas-api:
+    container_name: civitas-api
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: api
+    ports:
+      - "3001:3001"
+    environment:
+      PORT: "3001"
+      NODE_ENV: development
+    develop:
+      watch:
+        - action: sync+restart
+          path: ./lib
+          target: /app/lib
+        - action: sync+restart
+          path: ./artifacts/api-server/src
+          target: /app/artifacts/api-server/src
+        - action: rebuild
+          path: ./package.json
+        - action: rebuild
+          path: ./pnpm-lock.yaml
+
+  civitas-frontend:
+    container_name: civitas-frontend
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: twin
+    ports:
+      - "5173:5173"
+    environment:
+      PORT: "5173"
+      BASE_PATH: "/"
+      API_PORT: "3001"
+      API_URL: "http://civitas-api:3001"
+    volumes:
+      - ./artifacts/mockup-sandbox/src:/app/artifacts/mockup-sandbox/src
+      - ./lib:/app/lib
+    depends_on:
+      - civitas-api
+    develop:
+      watch:
+        - action: rebuild
+          path: ./package.json
+        - action: rebuild
+          path: ./pnpm-lock.yaml
