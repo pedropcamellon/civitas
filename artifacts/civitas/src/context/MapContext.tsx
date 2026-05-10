@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useState } from "react";
 
 export type LayerKey = "crime" | "requests311" | "permits" | "water" | "cargo";
-export type TimeFilter = "24h" | "7d" | "30d";
+/** A calendar year that exists in the ingested dataset, e.g. "2023". */
+export type TimeFilter = string;
 
 export interface CivicIncident {
   id: string;
@@ -71,7 +72,7 @@ export function MapProvider({ children }: { children: React.ReactNode }) {
     water: true,
     cargo: true,
   });
-  const [timeFilter, setTimeFilter] = useState<TimeFilter>("7d");
+  const [timeFilter, setTimeFilter] = useState<TimeFilter>(""); // set to latest year by TimelineBar on mount
   const [selectedIncident, setSelectedIncident] = useState<CivicIncident | null>(null);
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [neighborhoodReport, setNeighborhoodReport] = useState<NeighborhoodReport | null>(null);

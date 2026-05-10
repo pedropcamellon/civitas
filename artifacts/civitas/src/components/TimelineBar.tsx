@@ -1,25 +1,31 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { useColors } from "@/hooks/useColors";
-import { useMapContext, type TimeFilter } from "@/context/MapContext";
-
-const FILTERS: { key: TimeFilter; label: string }[] = [
-  { key: "24h", label: "24h" },
-  { key: "7d",  label: "7 days" },
-  { key: "30d", label: "30 days" },
-];
+import { useMapContext } from "@/context/MapContext";
+import { useDataMeta } from "@/hooks/useCivicData";
 
 export function TimelineBar() {
   const colors = useColors();
   const { timeFilter, setTimeFilter } = useMapContext();
+  const { data: meta } = useDataMeta();
+
+  // Once meta loads, default to the most recent year if no year is selected.
+  useEffect(() => {
+    if (!timeFilter && meta?.years?.length) {
+      setTimeFilter(String(meta.years[meta.years.length - 1]));
+    }
+  }, [meta, timeFilter, setTimeFilter]);
+
+  const years: number[] = meta?.years ?? [];
 
   return (
     <div style={{ display: "flex", gap: 6, padding: "0 16px 8px" }}>
-      {FILTERS.map((f) => {
-        const active = timeFilter === f.key;
+      {years.map((year) => {
+        const key = String(year);
+        const active = timeFilter === key;
         return (
           <button
-            key={f.key}
-            onClick={() => setTimeFilter(f.key)}
+            key={key}
+            onClick={() => setTimeFilter(key)}
             style={{
               padding: "7px 14px",
               borderRadius: 20,
@@ -32,7 +38,7 @@ export function TimelineBar() {
               fontFamily: "inherit",
             }}
           >
-            {f.label}
+            {year}
           </button>
         );
       })}

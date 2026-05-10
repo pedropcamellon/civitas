@@ -1,14 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import type { CivicIncident, NeighborhoodReport, TimeFilter } from "@/context/MapContext";
 
-function getDateCutoff(timeFilter: TimeFilter): string {
-  const now = new Date();
-  if (timeFilter === "24h") now.setHours(now.getHours() - 24);
-  else if (timeFilter === "7d") now.setDate(now.getDate() - 7);
-  else now.setDate(now.getDate() - 30);
-  return now.toISOString();
-}
-
 interface RawIncident {
   id: string;
   type: "crime" | "311" | "permit" | "water";
@@ -44,11 +36,30 @@ function toCivicIncident(r: RawIncident): CivicIncident {
 }
 
 async function fetchLayer(endpoint: string, timeFilter: TimeFilter): Promise<CivicIncident[]> {
-  const since = getDateCutoff(timeFilter);
-  const res = await fetch(`/api${endpoint}?since=${encodeURIComponent(since)}`);
+  const params = timeFilter ? `?year=${encodeURIComponent(timeFilter)}` : "";
+  const res = await fetch(`/api${endpoint}${params}`);
   if (!res.ok) throw new Error(`API error ${res.status}`);
   const data = (await res.json()) as RawIncident[];
   return data.map(toCivicIncident);
+}
+
+export interface DataMeta {
+  latestDate: string;
+  earliestDate: string;
+  years: number[];
+  count: number;
+}
+
+export function useDataMeta() {
+  return useQuery<DataMeta>({
+    queryKey: ["civic-meta"],
+    queryFn: async () => {
+      const res = await fetch("/api/civic/meta");
+      if (!res.ok) throw new Error(`Meta API error ${res.status}`);
+      return res.json() as Promise<DataMeta>;
+    },
+    staleTime: 10 * 60 * 1000,
+  });
 }
 
 export function use311Data(timeFilter: TimeFilter, enabled = true) {
