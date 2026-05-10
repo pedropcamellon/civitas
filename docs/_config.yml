@@ -1,0 +1,33 @@
+title: Civitas Docs
+description: Map-first civic intelligence for South Florida
+baseurl: "/civitas"
+url: "https://pedropcamellon.github.io"
+
+theme: just-the-docs
+
+# Navigation
+nav_sort: order   # use nav_order front matter
+
+# Search
+search_enabled: true
+search:
+  heading_level: 2
+  previews: 2
+  preview_words_before: 3
+  preview_words_after: 3
+
+# Footer links
+footer_content: >
+  Civitas — South Florida civic data, open source.
+
+# Color scheme (dark by default, toggle available)
+color_scheme: dark
+
+# Callout styling for status markers ✅ 🚧 📐
+callouts_level: quiet
+
+# Exclude files Jekyll shouldn't process
+exclude:
+  - Gemfile
+  - Gemfile.lock
+  - node_modules
