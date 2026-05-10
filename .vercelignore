@@ -11,6 +11,5 @@ docs
 attached_assets
 scripts
 data
-pnpm-lock.yaml
 *.log
 .git
