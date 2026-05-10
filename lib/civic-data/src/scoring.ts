@@ -48,6 +48,10 @@ export function filterByDate(incidents: RawIncident[], since?: string): RawIncid
   return incidents.filter((i) => new Date(i.date).getTime() >= cutoff);
 }
 
+export function filterByYear(incidents: RawIncident[], year: number): RawIncident[] {
+  return incidents.filter((i) => new Date(i.date).getFullYear() === year);
+}
+
 // ── Geo helpers ───────────────────────────────────────────────────────────
 
 function dist(lat1: number, lon1: number, lat2: number, lon2: number): number {

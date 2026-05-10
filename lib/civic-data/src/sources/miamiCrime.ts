@@ -1,17 +1,31 @@
 import type { SourceAdapter, FetchOptions, NormalizedIncident } from "./adapter.js";
 import { NEIGHBORHOODS } from "../neighborhoods.js";
 
-const ENDPOINT = "https://opendata.miamidade.gov/resource/ghx4-s5qi.json";
+/** ArcGIS WHERE clause requires `timestamp 'YYYY-MM-DD HH:MM:SS'` format, not epoch ms. */
+function toArcGISTimestamp(iso: string): string {
+  return `timestamp '${iso.replace("T", " ").replace("Z", "").slice(0, 19)}'`;
+}
 
-interface SodaCrimeRecord {
-  case_number?: string;
-  offense?: string;
-  offense_description?: string;
-  date_occurred?: string;
-  disposition?: string;
-  address?: string;
-  latitude?: string;
-  longitude?: string;
+// NOTE: Miami-Dade does NOT publish a queryable crime incident feed in their open data portal.
+// The closest available data is the Jail Bookings dataset (May 2015 to current),
+// which covers arrests and bookings — not all reported crimes.
+// CrimeMapping.com (crimemapping.com/map/fl/miami-dadecounty) exists but has no public API.
+//
+// This adapter uses the Jail Bookings Feature Service as the crime proxy until
+// a dedicated crime incident feed becomes available.
+const SERVICE_URL =
+  "https://services.arcgis.com/8Pc9XBTAsYuxx9Ny/arcgis/rest/services/miamidade_jail_data/FeatureServer/0";
+
+interface ArcGISJailRecord {
+  ObjectId?: number;
+  arrest_date?: number;  // epoch ms
+  charge_description?: string;
+  charge_type?: string;
+  address?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  booking_number?: string;
+  arrest_disposition?: string | null;
 }
 
 function nearestNeighborhood(lat: number, lon: number): string {
@@ -29,45 +43,51 @@ function nearestNeighborhood(lat: number, lon: number): string {
 
 export class MiamiCrimeAdapter implements SourceAdapter {
   meta = {
-    id: "miami-pd-crime",
+    id: "miami-dade-jail-bookings",
     layer: "crime" as const,
-    label: "Miami PD Crime Incidents",
-    attribution: "Miami-Dade County Open Data",
+    label: "Miami-Dade Jail Bookings (crime proxy)",
+    attribution: "Miami-Dade County Open Data Hub",
   };
 
   async fetch(options: FetchOptions): Promise<NormalizedIncident[]> {
     const timeout = parseInt(process.env.INGEST_TIMEOUT_MS ?? "30000", 10);
-    const limit = options.limit ?? 1000;
-
-    const params = new URLSearchParams({
-      $limit: String(limit),
-      $order: "date_occurred DESC",
-    });
-    if (options.since) {
-      params.set("$where", `date_occurred > '${options.since}'`);
-    }
-
-    const headers: Record<string, string> = {};
-    const appToken = process.env.SODA_APP_TOKEN;
-    if (appToken) headers["X-App-Token"] = appToken;
-
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeout);
+    const signal = options.signal ?? controller.signal;
 
     try {
-      const res = await fetch(`${ENDPOINT}?${params}`, {
-        headers,
-        signal: options.signal ?? controller.signal,
+      const sinceIso = options.since ?? new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+      const sinceTs = toArcGISTimestamp(sinceIso);
+
+      const params = new URLSearchParams({
+        f: "json",
+        where: `arrest_date >= ${sinceTs}`,
+        // Note: field `arrest_date` is of type esriFieldTypeDate (epoch ms internally),
+        // but WHERE clauses require the `timestamp '...'` string format.
+        outFields: "*",
+        orderByFields: "arrest_date DESC",
+        resultRecordCount: "2000",
+        returnGeometry: "false",
       });
+
+      const res = await fetch(`${SERVICE_URL}/query?${params}`, { signal });
       if (!res.ok) throw new Error(`HTTP ${res.status} from ${this.meta.id}`);
 
-      const records: SodaCrimeRecord[] = await res.json() as SodaCrimeRecord[];
+      const data = await res.json() as {
+        features?: { attributes: ArcGISJailRecord }[];
+        error?: { message: string };
+      };
 
-      return records.flatMap((r) => {
-        const lat = parseFloat(r.latitude ?? "");
-        const lon = parseFloat(r.longitude ?? "");
-        const externalId = r.case_number ?? "";
-        if (!externalId || isNaN(lat) || isNaN(lon)) return [];
+      if (data.error) throw new Error(data.error.message);
+
+      return (data.features ?? []).flatMap((f) => {
+        const r = f.attributes;
+        const externalId = r.booking_number ?? String(r.ObjectId ?? "");
+        if (!externalId) return [];
+
+        // Jail booking data rarely has coordinates — use nearest neighborhood centroid
+        const lat = r.latitude ?? NEIGHBORHOODS[0].lat;
+        const lon = r.longitude ?? NEIGHBORHOODS[0].lon;
 
         return [
           {
@@ -77,10 +97,12 @@ export class MiamiCrimeAdapter implements SourceAdapter {
             type: "crime" as const,
             lat,
             lon,
-            title: r.offense ?? "Crime Incident",
-            description: r.offense_description ?? "",
-            date: r.date_occurred ?? new Date().toISOString(),
-            status: r.disposition ?? "Under Investigation",
+            title: r.charge_description ?? "Arrest",
+            description: r.charge_type ?? "",
+            date: r.arrest_date
+              ? new Date(r.arrest_date).toISOString()
+              : new Date().toISOString(),
+            status: r.arrest_disposition ?? "Booked",
             address: r.address ?? "",
             neighborhood: nearestNeighborhood(lat, lon),
           },
@@ -91,3 +113,4 @@ export class MiamiCrimeAdapter implements SourceAdapter {
     }
   }
 }
+

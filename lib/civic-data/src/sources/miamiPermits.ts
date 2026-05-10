@@ -1,17 +1,35 @@
 import type { SourceAdapter, FetchOptions, NormalizedIncident } from "./adapter.js";
 import { NEIGHBORHOODS } from "../neighborhoods.js";
 
-const ENDPOINT = "https://opendata.miamidade.gov/resource/mxhq-a7mw.json";
+/** ArcGIS WHERE clause requires `timestamp 'YYYY-MM-DD HH:MM:SS'` format, not epoch ms. */
+function toArcGISTimestamp(iso: string): string {
+  return `timestamp '${iso.replace("T", " ").replace("Z", "").slice(0, 19)}'`;
+}
 
-interface SodaPermitRecord {
-  permit_number?: string;
-  work_type?: string;
-  work_description?: string;
-  issue_date?: string;
-  status?: string;
-  address?: string;
-  latitude?: string;
-  longitude?: string;
+// Miami-Dade Building Permits — single continuously-updated ArcGIS Feature Service.
+// Date field ISSUDATE is stored as epoch milliseconds.
+// Fields: ID, TYPE, DESC1, ISSUDATE, BPSTATUS, ADDRESS, geometry
+const SERVICE_URL =
+  "https://services.arcgis.com/8Pc9XBTAsYuxx9Ny/arcgis/rest/services/BuildingPermit_gdb/FeatureServer/0";
+
+interface ArcGISPermitRecord {
+  ID?: number;
+  TYPE?: string;
+  DESC1?: string;
+  ISSUDATE?: number; // epoch ms
+  BPSTATUS?: string;
+  ADDRESS?: string;
+  PROCNUM?: string;
+}
+
+interface ArcGISGeometry {
+  x?: number;
+  y?: number;
+}
+
+interface ArcGISPermitFeature {
+  attributes: ArcGISPermitRecord;
+  geometry?: ArcGISGeometry;
 }
 
 function nearestNeighborhood(lat: number, lon: number): string {
@@ -32,42 +50,40 @@ export class MiamiPermitsAdapter implements SourceAdapter {
     id: "miami-dade-permits",
     layer: "permit" as const,
     label: "Miami-Dade Building Permits",
-    attribution: "Miami-Dade County Open Data",
+    attribution: "Miami-Dade County Open Data Hub",
   };
 
   async fetch(options: FetchOptions): Promise<NormalizedIncident[]> {
     const timeout = parseInt(process.env.INGEST_TIMEOUT_MS ?? "30000", 10);
-    const limit = options.limit ?? 1000;
-
-    const params = new URLSearchParams({
-      $limit: String(limit),
-      $order: "issue_date DESC",
-    });
-    if (options.since) {
-      params.set("$where", `issue_date > '${options.since}'`);
-    }
-
-    const headers: Record<string, string> = {};
-    const appToken = process.env.SODA_APP_TOKEN;
-    if (appToken) headers["X-App-Token"] = appToken;
-
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeout);
+    const signal = options.signal ?? controller.signal;
 
     try {
-      const res = await fetch(`${ENDPOINT}?${params}`, {
-        headers,
-        signal: options.signal ?? controller.signal,
+      const sinceIso = options.since ?? new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+      const sinceTs = toArcGISTimestamp(sinceIso);
+
+      const params = new URLSearchParams({
+        f: "json",
+        where: `ISSUDATE >= ${sinceTs}`,
+        outFields: "ID,TYPE,DESC1,ISSUDATE,BPSTATUS,ADDRESS,PROCNUM",
+        orderByFields: "ISSUDATE DESC",
+        resultRecordCount: "2000",
+        returnGeometry: "true",
+        outSR: "4326",
       });
+
+      const res = await fetch(`${SERVICE_URL}/query?${params}`, { signal });
       if (!res.ok) throw new Error(`HTTP ${res.status} from ${this.meta.id}`);
 
-      const records: SodaPermitRecord[] = await res.json() as SodaPermitRecord[];
+      const data = await res.json() as { features?: ArcGISPermitFeature[] };
 
-      return records.flatMap((r) => {
-        const lat = parseFloat(r.latitude ?? "");
-        const lon = parseFloat(r.longitude ?? "");
-        const externalId = r.permit_number ?? "";
-        if (!externalId || isNaN(lat) || isNaN(lon)) return [];
+      return (data.features ?? []).flatMap((f) => {
+        const r = f.attributes;
+        const lon = f.geometry?.x;
+        const lat = f.geometry?.y;
+        const externalId = r.PROCNUM ?? String(r.ID ?? "");
+        if (!externalId || lat == null || lon == null) return [];
 
         return [
           {
@@ -77,11 +93,11 @@ export class MiamiPermitsAdapter implements SourceAdapter {
             type: "permit" as const,
             lat,
             lon,
-            title: r.work_type ?? "Building Permit",
-            description: r.work_description ?? "",
-            date: r.issue_date ?? new Date().toISOString(),
-            status: r.status ?? "Issued",
-            address: r.address ?? "",
+            title: r.TYPE ?? "Building Permit",
+            description: r.DESC1?.trim() ?? "",
+            date: r.ISSUDATE ? new Date(r.ISSUDATE).toISOString() : new Date().toISOString(),
+            status: r.BPSTATUS ?? "Issued",
+            address: r.ADDRESS?.trim() ?? "",
             neighborhood: nearestNeighborhood(lat, lon),
           },
         ];
@@ -91,3 +107,4 @@ export class MiamiPermitsAdapter implements SourceAdapter {
     }
   }
 }
+
