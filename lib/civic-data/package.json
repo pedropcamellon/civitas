@@ -1,0 +1,11 @@
+{
+  "name": "@workspace/civic-data",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./ingest": "./src/ingest.ts",
+    "./sources": "./src/sources/index.ts"
+  }
+}

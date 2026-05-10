@@ -1,0 +1,27 @@
+import type { Neighborhood } from "./types.js";
+
+export const NEIGHBORHOODS: Neighborhood[] = [
+  { name: "Downtown Miami",    lat: 25.7685, lon: -80.1937 },
+  { name: "Brickell",          lat: 25.7617, lon: -80.1918 },
+  { name: "Coconut Grove",     lat: 25.7550, lon: -80.2100 },
+  { name: "Wynwood",           lat: 25.7959, lon: -80.1997 },
+  { name: "Edgewater",         lat: 25.8050, lon: -80.1913 },
+  { name: "Midtown",           lat: 25.7882, lon: -80.1840 },
+  { name: "Little Havana",     lat: 25.7653, lon: -80.2278 },
+  { name: "Coral Gables",      lat: 25.7215, lon: -80.2684 },
+  { name: "South Beach",       lat: 25.7725, lon: -80.1330 },
+  { name: "Miami Beach",       lat: 25.7907, lon: -80.1300 },
+  { name: "North Beach",       lat: 25.8150, lon: -80.1220 },
+  { name: "Design District",   lat: 25.8140, lon: -80.1978 },
+  { name: "Liberty City",      lat: 25.8320, lon: -80.2100 },
+  { name: "Overtown",          lat: 25.7888, lon: -80.2098 },
+  { name: "Allapattah",        lat: 25.8012, lon: -80.2338 },
+  { name: "Doral",             lat: 25.8196, lon: -80.3568 },
+  { name: "Fontainebleau",     lat: 25.7738, lon: -80.3412 },
+  { name: "Hialeah",           lat: 25.8576, lon: -80.2781 },
+  { name: "Kendall",           lat: 25.6847, lon: -80.4178 },
+  { name: "South Miami",       lat: 25.7063, lon: -80.2892 },
+  { name: "Homestead",         lat: 25.4750, lon: -80.4773 },
+  { name: "North Miami",       lat: 25.8893, lon: -80.1867 },
+  { name: "North Miami Beach", lat: 25.9215, lon: -80.1578 },
+];
