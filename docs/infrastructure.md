@@ -94,7 +94,21 @@ Year filter is preferred. `?since=ISO` is also accepted as a fallback.
 | Domain    | localhost    | *.vercel.app (free)        |
 | **Total** | **$0**       | **$0**                     |
 
-## 8. Ingest CI
+## Deployment
+
+Vercel is connected directly to the GitHub repo (`pedropcamellon/civitas`). No GitHub Actions workflow is needed for deploys:
+
+| Branch | Result |
+|--------|--------|
+| `main` | Production deployment |
+| Any other branch / PR | Preview URL |
+
+Every `git push` triggers an automatic Vercel build:
+1. `corepack enable && pnpm install --frozen-lockfile`
+2. `pnpm --filter @workspace/mockup-sandbox build`
+3. Serverless functions in `api/` are bundled alongside the static output
+
+## Ingest CI
 
 `.github/workflows/ingest.yml` — manually triggered (`workflow_dispatch`) with inputs:
 - `full_refresh` (boolean)
