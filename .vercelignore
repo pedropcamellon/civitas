@@ -4,7 +4,6 @@ node_modules
 artifacts/api-server
 artifacts/civitas
 artifacts/mobile
-lib/db
 docker-compose.yml
 Dockerfile
 docs
