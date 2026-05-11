@@ -4,6 +4,9 @@
   "files": [],
   "references": [
     {
+      "path": "./lib/civic-data"
+    },
+    {
       "path": "./lib/db"
     },
     {

@@ -20,6 +20,10 @@
     "skipLibCheck": true,
     "target": "es2022",
     "types": [],
-    "customConditions": ["workspace"]
+    "customConditions": ["workspace"],
+    "paths": {
+      "@workspace/civic-data": ["./lib/civic-data/src/index.ts"],
+      "@workspace/civic-data/*": ["./lib/civic-data/src/*.ts"]
+    }
   }
 }
