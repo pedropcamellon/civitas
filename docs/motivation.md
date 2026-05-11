@@ -56,7 +56,7 @@ This is a weekend prototype, not a platform. If it takes more than a few evening
 
 ## Cost constraint
 
-Keep it near zero. Vercel free hosting, static JSON or serverless functions, Socrata API (free), OpenStreetMap tiles (no Google Maps cost). Avoid paid GIS APIs, heavy backends, always-on servers.
+Keep it near zero. Vercel free hosting, static JSON or serverless functions, Miami-Dade ArcGIS Hub (free public tier), OpenStreetMap tiles. Avoid paid GIS APIs, heavy backends, always-on servers.
 
 ---
 
@@ -64,7 +64,7 @@ Keep it near zero. Vercel free hosting, static JSON or serverless functions, Soc
 
 These were identified as the real, usable, free sources for South Florida:
 
-**Miami-Dade Open Data Portal** — 311 service requests, crime data, permits, property info, environmental and health datasets. API: Socrata SODA. This became the primary source.
+**Miami-Dade Open Data Hub** (`opendata.miamidade.gov`) — 311 service requests, jail bookings, building permits, and more. The portal runs on **ArcGIS Hub** (migrated from Socrata). All datasets are ArcGIS Feature Services queried via the ArcGIS REST API. This is the primary source.
 
 **City of Miami Open Data** — 311 requests (geo points), building permits, zoning layers, parks and cultural venues.
 
@@ -72,7 +72,7 @@ These were identified as the real, usable, free sources for South Florida:
 
 **Miami-Dade GIS Services** — parcels, zoning, land use, building footprints, address points. ArcGIS services. Flagged for later.
 
-**Flooding and climate risk** — FEMA flood zones, NOAA sea level and tide data, USGS groundwater data. Flagged as later overlays. NOAA tides is already in the ingest spec.
+**Flooding and climate risk** — FEMA flood zones, NOAA sea level and tide data, USGS groundwater data. Flagged as later overlays.
 
 ---
 

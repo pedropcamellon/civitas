@@ -4,11 +4,9 @@ title: Open Data Ingest
 nav_order: 4
 ---
 
-# Open Data — Ingest Spec
+# Open Data — Ingest
 
-> Status markers: `✅ Done` | `🚧 In Progress` | `📐 Specified`
-
-Civitas **never fetches from external APIs during a user session**. Instead, data is pulled from Miami-Dade open data sources on demand, normalized, and written to `data/incidents.json`. The app always reads from that stored file, filtered by the user's selected time window.
+Civitas **never fetches from external APIs during a user session**. Instead, data is pulled from Miami-Dade open data sources on demand, normalized, and written to `data/incidents.json`. The app always reads from that stored file, filtered by the year the user selects.
 
 ```
  ┌──────────────────┐    pnpm ingest     ┌────────────────────┐     always
@@ -45,13 +43,13 @@ Pagination uses `resultRecordCount` + `resultOffset`. Response includes
 
 ## Data sources
 
-| ID | Layer | Service URL | Public? | Status |
-|----|-------|-------------|---------|--------|
-| `miami-dade-311` | `311` | `…/data_311_2023/FeatureServer/0` | ✅ 2023 and earlier | ✅ Done |
-| `miami-dade-jail-bookings` | `crime` | `…/miamidade_jail_data/FeatureServer/0` | ✅ May 2015–present | ✅ Done |
-| `miami-dade-permits` | `permit` | `…/BuildingPermit_gdb/FeatureServer/0` | ✅ 2003–present | ✅ Done |
-| `miami-water` | `water` | Water & Sewer dept — no public API found yet | ❌ | 📐 Specified |
-| `seed` | all | `lib/civic-data/src/generate.ts` | — | ✅ Done |
+| ID                         | Layer    | Service URL                                  | Public?            | Status      |
+| -------------------------- | -------- | -------------------------------------------- | ------------------ | ----------- |
+| `miami-dade-311`           | `311`    | `…/data_311_2023/FeatureServer/0`            | ✅ 2023 and earlier | ✅ Done      |
+| `miami-dade-jail-bookings` | `crime`  | `…/miamidade_jail_data/FeatureServer/0`      | ✅ May 2015–present | ✅ Done      |
+| `miami-dade-permits`       | `permit` | `…/BuildingPermit_gdb/FeatureServer/0`       | ✅ 2003–present     | ✅ Done      |
+| `miami-water`              | `water`  | Water & Sewer dept — no public API found yet | ❌                  | 📐 Specified |
+| `seed`                     | all      | `lib/civic-data/src/generate.ts`             | —                  | ✅ Done      |
 
 ### Important caveats
 
@@ -62,46 +60,46 @@ Pagination uses `resultRecordCount` + `resultOffset`. Response includes
 
 ---
 
-## 3. Field mappings
+## Field mappings
 
 ### miami-dade-311 (ArcGIS `data_311_2023`)
 
-| ArcGIS field | RawIncident field |
-|--------------|-------------------|
-| `ticket_id` | `id`, `externalId` |
-| `issue_type` | `title` |
-| `issue_description` | `description` |
-| `ticket_created_date_time` (epoch ms) | `date` |
-| `ticket_status` | `status` |
-| `street_address` | `address` |
-| `latitude` / `longitude` | `lat` / `lon` |
-| geo lookup | `neighborhood` |
+| ArcGIS field                          | RawIncident field  |
+| ------------------------------------- | ------------------ |
+| `ticket_id`                           | `id`, `externalId` |
+| `issue_type`                          | `title`            |
+| `issue_description`                   | `description`      |
+| `ticket_created_date_time` (epoch ms) | `date`             |
+| `ticket_status`                       | `status`           |
+| `street_address`                      | `address`          |
+| `latitude` / `longitude`              | `lat` / `lon`      |
+| geo lookup                            | `neighborhood`     |
 
 ### miami-dade-jail-bookings (crime proxy)
 
-| ArcGIS field | RawIncident field |
-|--------------|-------------------|
-| `booking_number` | `id`, `externalId` |
-| `charge_description` | `title` |
-| `charge_type` | `description` |
-| `arrest_date` (epoch ms) | `date` |
-| `arrest_disposition` | `status` |
-| `address` | `address` |
+| ArcGIS field                          | RawIncident field                                           |
+| ------------------------------------- | ----------------------------------------------------------- |
+| `booking_number`                      | `id`, `externalId`                                          |
+| `charge_description`                  | `title`                                                     |
+| `charge_type`                         | `description`                                               |
+| `arrest_date` (epoch ms)              | `date`                                                      |
+| `arrest_disposition`                  | `status`                                                    |
+| `address`                             | `address`                                                   |
 | `latitude` / `longitude` (often null) | `lat` / `lon` (falls back to nearest neighborhood centroid) |
-| geo lookup | `neighborhood` |
+| geo lookup                            | `neighborhood`                                              |
 
 ### miami-dade-permits (ArcGIS `BuildingPermit_gdb`)
 
-| ArcGIS field | RawIncident field |
-|--------------|-------------------|
-| `PROCNUM` | `id`, `externalId` |
-| `TYPE` | `title` |
-| `DESC1` | `description` |
-| `ISSUDATE` (epoch ms) | `date` |
-| `BPSTATUS` | `status` |
-| `ADDRESS` | `address` |
-| geometry x/y (WGS84) | `lat` / `lon` |
-| geo lookup | `neighborhood` |
+| ArcGIS field          | RawIncident field  |
+| --------------------- | ------------------ |
+| `PROCNUM`             | `id`, `externalId` |
+| `TYPE`                | `title`            |
+| `DESC1`               | `description`      |
+| `ISSUDATE` (epoch ms) | `date`             |
+| `BPSTATUS`            | `status`           |
+| `ADDRESS`             | `address`          |
+| geometry x/y (WGS84)  | `lat` / `lon`      |
+| geo lookup            | `neighborhood`     |
 
 ---
 
@@ -150,10 +148,10 @@ INGEST_SINCE_DAYS=900 pnpm --filter @workspace/scripts run ingest --layer=311
 
 ## Environment variables (ingest only)
 
-| Variable | Required | Default | Purpose |
-|----------|----------|---------|---------|
-| `INGEST_SINCE_DAYS` | No | `30` | How many days back to pull |
-| `INGEST_TIMEOUT_MS` | No | `30000` | Per-source HTTP timeout |
+| Variable            | Required | Default | Purpose                    |
+| ------------------- | -------- | ------- | -------------------------- |
+| `INGEST_SINCE_DAYS` | No       | `30`    | How many days back to pull |
+| `INGEST_TIMEOUT_MS` | No       | `30000` | Per-source HTTP timeout    |
 
 `SODA_APP_TOKEN` is no longer relevant — the portal is ArcGIS, not Socrata.
 
@@ -161,22 +159,22 @@ INGEST_SINCE_DAYS=900 pnpm --filter @workspace/scripts run ingest --layer=311
 
 ## Error handling
 
-| Failure mode | Behavior |
-|--------------|----------|
-| ArcGIS service error | Skip source, preserve existing records for that layer |
-| Adapter timeout | Skip source, log warning |
-| Record missing required field | Drop record, log warning, continue |
-| All sources fail | Write nothing — existing file preserved |
-| Ingest never ran | `loadIncidents()` returns seed data |
-| `data/incidents.json` corrupt | `loadIncidents()` returns seed data |
+| Failure mode                  | Behavior                                              |
+| ----------------------------- | ----------------------------------------------------- |
+| ArcGIS service error          | Skip source, preserve existing records for that layer |
+| Adapter timeout               | Skip source, log warning                              |
+| Record missing required field | Drop record, log warning, continue                    |
+| All sources fail              | Write nothing — existing file preserved               |
+| Ingest never ran              | `loadIncidents()` returns seed data                   |
+| `data/incidents.json` corrupt | `loadIncidents()` returns seed data                   |
 
 ---
 
-## 8. Open gaps
+## Open gaps
 
-| Gap | Notes |
-|-----|-------|
-| Crime incident feed | MDPD does not publish one. Jail bookings is the only proxy. |
-| 2024+ 311 data | Requires ArcGIS token (HTTP 499 without it). Monitor MDC open data. |
-| Water advisories | No public API found. May require FOIA or manual check with Water & Sewer dept. |
+| Gap                 | Notes                                                                          |
+| ------------------- | ------------------------------------------------------------------------------ |
+| Crime incident feed | MDPD does not publish one. Jail bookings is the only proxy.                    |
+| 2024+ 311 data      | Requires ArcGIS token (HTTP 499 without it). Monitor MDC open data.            |
+| Water advisories    | No public API found. May require FOIA or manual check with Water & Sewer dept. |
 

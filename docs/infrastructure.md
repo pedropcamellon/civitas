@@ -4,16 +4,15 @@ title: Infrastructure
 nav_order: 3
 ---
 
-# Civic Watch — Infrastructure Spec
-# Target: local Docker dev + Vercel free tier production
+# Civitas — Infrastructure
 
 ## 1. Goals
 
 - **Local dev**: `docker compose up` runs everything (API + frontend) on localhost
 - **Vercel prod**: zero-cost deploy — Vite static site + serverless API functions
-- **Storage**: JSON flat files checked into the repo (no DB at all for now)
-- **Data**: static seed data → later replaced by daily cron fetching Miami-Dade open data
-- **KISS**: no Postgres, no Redis, no external services, no API keys
+- **Storage**: `data/incidents.json` checked into the repo — no DB, no external services
+- **Data**: populated by the ingest script (`pnpm --filter @workspace/scripts run ingest`)
+- **KISS**: no Postgres, no Redis, no API keys required to run
 
 ## 2. Architecture
 
@@ -21,186 +20,87 @@ nav_order: 3
 ┌─────────────────────────────────────────────────────────┐
 │                       Vercel (free)                     │
 │                                                         │
-│  Static build ─── artifacts/mockup-sandbox/dist/        │
+│  Static build ─── artifacts/civitas/dist/               │
 │                                                         │
 │  Serverless  ──── api/                                  │
-│                   ├── civic/[layer].ts   GET /api/civic/*│
+│                   ├── civic/[layer].ts  GET /api/civic/* │
 │                   └── neighborhood/report.ts             │
 │                                                         │
 │  Data files  ──── data/                                 │
-│                   └── incidents.json (bundled at build)  │
+│                   └── incidents.json  (bundled at build) │
 └─────────────────────────────────────────────────────────┘
 ```
 
-Local dev uses the existing Express server unchanged.
+Local dev uses an Express server (`artifacts/api-server`) unchanged.
 
-## 3. Workspace changes (checklist)
+## 3. Monorepo layout
 
-### 3.1 Extract in-memory data to a shared JSON file
-
-- [ ] Create `data/incidents.json` — dump `MIAMI_INCIDENTS` array from
-      `artifacts/api-server/src/data/miamiCivicData.ts` at build time
-- [ ] Create `data/neighborhoods.json` — the `NEIGHBORHOODS` array
-- [ ] Create a shared loader `lib/civic-data/src/index.ts`:
-      ```ts
-      import incidents from "../../../data/incidents.json";
-      import neighborhoods from "../../../data/neighborhoods.json";
-      export { incidents, neighborhoods };
-      ```
-- [ ] Wire `lib/civic-data` into `pnpm-workspace.yaml` packages list
-- [ ] Both Express routes and Vercel functions import from `@workspace/civic-data`
-
-### 3.2 Create Vercel serverless functions
-
-- [ ] `api/civic/[layer].ts` — handles `/api/civic/crime`, `/api/civic/311`,
-      `/api/civic/permits`, `/api/civic/water`
-      Uses the same filter-by-date logic as the Express route.
-- [ ] `api/neighborhood/report.ts` — same logic as Express neighborhood route
-- [ ] `api/healthz.ts` — returns `{ status: "ok" }`
-
-Each function is a standard Vercel edge/serverless handler:
-```ts
-import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { incidents } from "@workspace/civic-data";
-
-export default function handler(req: VercelRequest, res: VercelResponse) {
-  const layer = req.query.layer as string;
-  const since = req.query.since as string | undefined;
-  const filtered = incidents
-    .filter(i => i.type === (layer === "311" ? "311" : layer))
-    .filter(i => !since || new Date(i.date).getTime() >= new Date(since).getTime());
-  res.json(filtered);
-}
+```
+lib/
+  civic-data/        — shared types, generate.ts, scoring.ts, loader.ts, sources/
+artifacts/
+  api-server/        — Express app (local dev + Docker)
+  civitas/           — Vite + React web app
+scripts/
+  src/ingest.ts      — CLI: pulls real data from ArcGIS, writes data/incidents.json
+data/
+  incidents.json     — ingested snapshot (committed, updated by ingest script)
+api/                 — Vercel serverless functions (prod)
 ```
 
-### 3.3 Create `vercel.json`
+## 4. Data flow
 
-```json
-{
-  "buildCommand": "pnpm --filter @workspace/mockup-sandbox build",
-  "outputDirectory": "artifacts/mockup-sandbox/dist",
-  "framework": null,
-  "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/$1" }
-  ],
-  "installCommand": "corepack enable && pnpm install --frozen-lockfile"
-}
+```
+ ArcGIS Feature Services (Miami-Dade)
+         │
+         ▼  pnpm --filter @workspace/scripts run ingest
+ data/incidents.json   ◄── committed to git
+         │
+         ├── api-server routes (local/Docker)
+         └── api/ serverless functions (Vercel prod)
+                 │
+                 ▼
+         React map (artifacts/civitas)
 ```
 
-### 3.4 Update frontend API base
+`loadIncidents()` reads the file once at process start and caches it. Falls back to seed data (`lib/civic-data/src/generate.ts`) if the file is missing.
 
-- [ ] In `artifacts/mockup-sandbox/src/twin/useIncidents.ts`, change:
-      ```ts
-      const API_BASE = "/api";
-      ```
-      This already works for both local (proxied) and Vercel (rewritten). No change needed.
+## 5. API surface
 
-### 3.5 Vite proxy for local dev ✅
+| Route                                    | Description                                  |
+| ---------------------------------------- | -------------------------------------------- |
+| `GET /api/civic/meta`                    | `{ years, latestDate, earliestDate, count }` |
+| `GET /api/civic/311?year=YYYY`           | 311 incidents filtered by year               |
+| `GET /api/civic/crime?year=YYYY`         | Crime (jail bookings) filtered by year       |
+| `GET /api/civic/permits?year=YYYY`       | Permits filtered by year                     |
+| `GET /api/civic/water?year=YYYY`         | Water events filtered by year                |
+| `GET /api/neighborhood/report?lat=&lon=` | Neighborhood score report                    |
+| `GET /api/healthz`                       | `{ status: "ok" }`                           |
 
-`artifacts/mockup-sandbox/vite.config.ts` proxies `/api` to the Express server.
-For Docker, `API_URL` env var overrides the target so the container resolves the
-sibling service by name (`http://civitas-api:3001`) rather than localhost:
+Year filter is preferred. `?since=ISO` is also accepted as a fallback.
 
-```ts
-proxy: {
-  "/api": {
-    target: process.env.API_URL ?? `http://localhost:${process.env.API_PORT ?? "3001"}`,
-    changeOrigin: true,
-  },
-}
-```
+## 6. Vite proxy (local dev)
 
-`docker-compose.yml` passes `API_URL: "http://civitas-api:3001"` to the frontend container.
+`artifacts/civitas/vite.config.ts` proxies `/api` to the Express server. Docker passes `API_URL` so the container resolves the sibling service by name (`http://civitas-api:3001`).
 
-### 3.6 Docker Compose (local dev) ✅
+## 7. Cost breakdown
 
-Update `docker-compose.yml` to run both services:
+| Component | Local        | Vercel free tier           |
+| --------- | ------------ | -------------------------- |
+| Frontend  | Docker       | Static hosting (100 GB bw) |
+| API       | Docker       | Serverless (100k inv/day)  |
+| Storage   | JSON on disk | JSON bundled in functions  |
+| DB        | none         | none                       |
+| Domain    | localhost    | *.vercel.app (free)        |
+| **Total** | **$0**       | **$0**                     |
 
-```yaml
-services:
-  api:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: api
-    ports:
-      - "3001:3001"
-    environment:
-      PORT: "3001"
+## 8. Ingest CI
 
-  twin:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: twin
-    ports:
-      - "5173:5173"
-    environment:
-      PORT: "5173"
-      BASE_PATH: "/"
-    depends_on:
-      - api
-```
+`.github/workflows/ingest.yml` — manually triggered (`workflow_dispatch`) with inputs:
+- `full_refresh` (boolean)
+- `layer` (string, optional)
+- `since_days` (number)
 
-### 3.7 Multi-target Dockerfile
+Runs ingest, commits `data/incidents.json`, and Vercel auto-redeploys on the commit.
 
-```dockerfile
-FROM node:22-alpine AS base
-RUN corepack enable && corepack prepare pnpm@10 --activate
-WORKDIR /app
-COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
-COPY artifacts/api-server/package.json     artifacts/api-server/
-COPY artifacts/mockup-sandbox/package.json artifacts/mockup-sandbox/
-COPY lib/api-client-react/package.json     lib/api-client-react/
-COPY lib/api-spec/package.json             lib/api-spec/
-COPY lib/api-zod/package.json              lib/api-zod/
-COPY lib/db/package.json                   lib/db/
-COPY scripts/package.json                  scripts/
 
-# ── API server ──
-FROM base AS api
-RUN pnpm install --frozen-lockfile --filter @workspace/api-server...
-COPY artifacts/api-server/ artifacts/api-server/
-COPY lib/ lib/
-COPY data/ data/
-RUN pnpm --filter @workspace/api-server build
-EXPOSE 3001
-CMD ["node", "--enable-source-maps", "artifacts/api-server/dist/index.mjs"]
-
-# ── Frontend dev server ──
-FROM base AS twin
-RUN pnpm install --frozen-lockfile --filter @workspace/mockup-sandbox...
-COPY artifacts/mockup-sandbox/ artifacts/mockup-sandbox/
-EXPOSE 5173
-CMD ["pnpm", "--filter", "@workspace/mockup-sandbox", "dev"]
-```
-
-## 4. Data pipeline (future — not in v1)
-
-- Daily GitHub Action (free) or Vercel cron:
-  1. Fetch from Miami-Dade ArcGIS REST / Socrata endpoints
-  2. Write to `data/incidents.json`
-  3. Commit & push (triggers Vercel redeploy)
-- Cost: $0 — GitHub Actions has 2000 min/month free
-
-## 5. Cost breakdown
-
-| Component       | Local         | Vercel free tier           |
-|-----------------|---------------|----------------------------|
-| Frontend        | Docker        | Static hosting (100GB bw)  |
-| API             | Docker        | Serverless (100k inv/day)  |
-| Storage         | JSON on disk  | JSON bundled in functions   |
-| DB              | none          | none                       |
-| Domain          | localhost     | *.vercel.app (free)        |
-| **Total**       | **$0**        | **$0**                     |
-
-## 6. Implementation order
-
-1. Extract data to `data/*.json` + create `lib/civic-data`
-2. Refactor Express routes to use `@workspace/civic-data`
-3. Add Vite dev proxy (`/api` → `localhost:3001`)
-4. Update Dockerfile to multi-target + update `docker-compose.yml`
-5. Verify `docker compose up` works end-to-end
-6. Create `api/` serverless functions
-7. Create `vercel.json`
-8. Deploy to Vercel, verify everything works

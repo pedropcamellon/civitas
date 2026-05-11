@@ -6,11 +6,9 @@ nav_order: 2
 
 # Civitas — User Guide
 
-> Status: `🚧 In Progress` — updated as features ship
+Civitas is a map-first city intelligence tool for South Florida. It shows ingested civic data — crime, 311 calls, building permits, and water events — overlaid on an interactive map. The map is always the center of the experience.
 
-Civitas is a map-first city intelligence tool for South Florida. It shows ingested civic data — crime, 311 calls, permits, and water readings — overlaid on an interactive map. The map is always the center of the experience. Everything else (panels, filters, reports) is a detail layer on top of it.
-
-Data is ingested from Miami-Dade open data sources on a schedule and stored locally. The app never fetches from external APIs during a user session — it always queries from the last ingested snapshot, filtered to the last 30 days.
+Data is ingested from Miami-Dade open data sources on demand and stored in `data/incidents.json`. The app never calls external APIs during a session — it always queries from the last ingested snapshot, filtered by the year you select.
 
 ---
 
@@ -18,24 +16,24 @@ Data is ingested from Miami-Dade open data sources on a schedule and stored loca
 
 The map opens centered on Miami at zoom level 11 (neighborhood scale).
 
-| Action | Result |
-|--------|--------|
-| Click / tap the map | Select the nearest neighborhood, open Neighborhood Report |
-| Click a colored dot | Open the Incident detail modal |
-| Click a diamond marker | Open the infrastructure detail modal (water layer) |
-| Scroll-wheel / pinch zoom | Zoom in or out |
-| Drag | Pan the map |
-| Zoom buttons (bottom-right) | ＋ / − zoom control |
+| Action                      | Result                                                    |
+| --------------------------- | --------------------------------------------------------- |
+| Click / tap the map         | Select the nearest neighborhood, open Neighborhood Report |
+| Click a colored dot         | Open the Incident detail modal                            |
+| Click a diamond marker      | Open the infrastructure detail modal (water layer)        |
+| Scroll-wheel / pinch zoom   | Zoom in or out                                            |
+| Drag                        | Pan the map                                               |
+| Zoom buttons (bottom-right) | ＋ / − zoom control                                       |
 
 Dots are color-coded by data layer:
 
-| Color | Layer |
-|-------|-------|
-| Red | Crime incidents |
-| Yellow | 311 service calls |
-| Green | Building permits |
-| Cyan | Water events & infrastructure |
-| Orange | Logistics route (animated truck) |
+| Color  | Layer                                 |
+| ------ | ------------------------------------- |
+| Red    | Crime incidents (jail bookings proxy) |
+| Yellow | 311 service calls                     |
+| Green  | Building permits                      |
+| Cyan   | Water events & infrastructure         |
+| Orange | Logistics route (animated truck)      |
 
 Water **infrastructure** (treatment plants, pump stations, reservoirs) renders as a cyan diamond marker with a white dot centre — visually distinct from transient water events.
 
@@ -48,38 +46,43 @@ The **Layers panel** sits at the top-left of the screen (desktop) or in a compac
 - Click the **Layers** header row to **collapse or expand** the layer list.
 - Click any layer row to **toggle** it on or off.
 - The badge beside the header shows how many layers are currently active.
-- Inactive layers are hidden from the map and do not clutter the view.
 
 ### Crime ✅
-Police-reported incidents in Miami-Dade. Concentrated in historically higher-density areas (Liberty City, Overtown, Little Havana, Downtown, Allapattah, Hialeah). Each dot encodes recency — brighter and larger means more recent.
+Jail bookings from Miami-Dade — the closest available proxy to crime incidents (MDPD does not publish a public incident feed). Covers May 2015–present.
 
 ### 311 Calls ✅
-Non-emergency service requests (potholes, graffiti, noise, abandoned vehicles). Useful for spotting maintenance pressure in a neighborhood.
+Non-emergency service requests (potholes, graffiti, noise, abandoned vehicles). Currently populated from the public 2023 dataset.
 
 ### Permits ✅
-Active building permits. Clusters indicate active development or renovation.
+Building permits from the Miami-Dade county-wide service (2003–present). Clusters indicate active development.
 
 ### Water ✅
-Two types of markers on this layer:
-- **Circle dots** — transient advisories: boil-water notices, main breaks, discolored water reports, pressure failures.
-- **Diamond markers** — fixed infrastructure: Miami-Dade Water & Sewer treatment plants, pump stations, and reservoirs.
+Two types of markers:
+- **Circle dots** — transient advisories: boil-water notices, main breaks, discolored water.
+- **Diamond markers** — fixed infrastructure: treatment plants, pump stations, reservoirs.
 
 ### Logistics *(animated)* ✅
-An animated truck traces the Port of Miami → Doral industrial corridor — South Florida's primary freight path. The animation runs continuously while the layer is active.
+An animated truck traces the Port of Miami → Doral industrial corridor. Runs continuously while the layer is active.
+
+---
+
+## Year Filter
+
+The **year selector** at the bottom of the map shows only the years that have real data in the current snapshot. Tap any year to filter all layers to that calendar year. The selector defaults to the most recent year with data.
+
+This replaces the previous 24h / 7d / 30d relative filter — relative windows produced empty results when the ingested data predated today.
 
 ---
 
 ## Settings & Theme
 
-Click the **⚙ gear icon** in the top-right area of the toolbar to open the Settings menu.
+Click the **⚙ gear icon** in the top-right toolbar to open the Settings menu.
 
-| Option | Description |
-|--------|-------------|
-| Dark | Default dark map theme |
-| Light | Light basemap for daytime use |
-| Neon | High-contrast neon theme |
-
-The current theme is highlighted. Click any option to switch; the menu closes automatically.
+| Option | Description                   |
+| ------ | ----------------------------- |
+| Dark   | Default dark map theme        |
+| Light  | Light basemap for daytime use |
+| Neon   | High-contrast neon theme      |
 
 ---
 
@@ -88,13 +91,11 @@ The current theme is highlighted. Click any option to switch; the menu closes au
 Click anywhere on the map to select the nearest neighborhood and open its report panel (slides in from the right).
 
 The panel shows:
-- Crime count and severity score for the last 30 days
+- Crime count and severity score for the selected period
 - 311 request volume
 - Active permits
 - Water advisories (if any)
 - An overall safety label
-
-Use the search bar in the top toolbar to jump directly to a neighborhood by name.
 
 ---
 
@@ -145,11 +146,11 @@ The **Near Me** FAB (floating button, right side) centers the map on your curren
 
 The theme toggle in the header cycles through three map styles:
 
-| Theme | Feel |
-|-------|------|
-| Dark | Navy — default, low-light optimized |
+| Theme | Feel                                      |
+| ----- | ----------------------------------------- |
+| Dark  | Navy — default, low-light optimized       |
 | Light | CartoDB Voyager — daytime / accessibility |
-| Neon | Pink/cyan glow — high contrast |
+| Neon  | Pink/cyan glow — high contrast            |
 
 ---
 

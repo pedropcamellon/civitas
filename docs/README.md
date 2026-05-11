@@ -22,6 +22,14 @@ Tap a dot to see what happened. Tap a neighborhood to get a summary: crime score
 
 ---
 
+## Live app
+
+Production: **civitas.vercel.app**
+
+Every push to `main` on GitHub deploys automatically via Vercel's native git integration. Branches and PRs get preview URLs.
+
+---
+
 ## Where to start
 
 **Using the app** → [User Guide](user-guide.md)
