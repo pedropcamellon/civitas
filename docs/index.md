@@ -39,15 +39,3 @@ Every push to `main` on GitHub deploys automatically via Vercel's native git int
 **Understanding why it exists** → [Motivation & History](motivation.md)
 
 **Porting from mobile** → [Web Migration](web-migration.md)
-
----
-
-## Doc conventions
-
-These docs are written for three audiences: end users, developers, and AI agents. A few rules keep them useful for all three:
-
-- No code snippets — intent and decisions only, not implementation
-- No numbered headers — use descriptive titles
-- One topic per file — split before a file grows long
-- Store data source findings — field names, quirks, endpoint reliability belong here as permanent learnings
-- Status markers on every page: `✅ Done` · `🚧 In Progress` · `📐 Specified`

@@ -20,8 +20,11 @@ search:
 footer_content: >
   Civitas — South Florida civic data, open source.
 
-# Color scheme (dark by default, toggle available)
-color_scheme: dark
+# Color scheme — light by default, dark toggle enabled
+color_scheme: light
+
+# just-the-docs dark mode toggle
+dark_mode_toggle: true
 
 # Callout styling for status markers ✅ 🚧 📐
 callouts_level: quiet
