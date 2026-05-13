@@ -452,7 +452,11 @@ importers:
         specifier: 'catalog:'
         version: 3.25.76
 
-  lib/civic-data: {}
+  lib/civic-data:
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 25.3.5
 
   lib/db:
     dependencies:
