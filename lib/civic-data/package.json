@@ -3,6 +3,9 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "devDependencies": {
+    "@types/node": "catalog:"
+  },
   "exports": {
     ".": "./src/index.ts",
     "./ingest": "./src/ingest.ts",
