@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { buildNeighborhoodReport } from "@workspace/civic-data";
+import { buildNeighborhoodReport } from "../../lib/civic-data/src/index";
 
 export default function handler(req: VercelRequest, res: VercelResponse) {
   const lat = parseFloat(req.query["lat"] as string);

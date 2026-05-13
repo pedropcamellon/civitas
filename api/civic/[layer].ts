@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { MIAMI_INCIDENTS, filterByDate } from "@workspace/civic-data";
+import { MIAMI_INCIDENTS, filterByDate } from "../../lib/civic-data/src/index";
 
 const VALID_LAYERS = ["crime", "311", "permit", "water"] as const;
 type Layer = (typeof VALID_LAYERS)[number];
